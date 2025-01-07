@@ -70,8 +70,8 @@ const Auth = ({ onLogin }) => {
             {/* Left side - Brand/Image */}
             <div className="hidden lg:flex lg:w-2/5 bg-gunmetal text-alice-blue flex-col justify-between p-12 dark:bg-dark-bg-primary">
                 <div className="animate-fadeIn">
-                    <h1 className="text-4xl font-bold mb-4">ChatGenius</h1>
-                    <p className="text-powder-blue text-lg dark:text-dark-text-secondary">Connect, collaborate, and communicate seamlessly with ChatGenius</p>
+                    <h1 className="text-4xl font-bold mb-4">ChatterBox</h1>
+                    <p className="text-lg text-gray-600 mb-8">Connect, collaborate, and communicate seamlessly with ChatterBox</p>
                 </div>
                 <div className="space-y-6 animate-slideUp">
                     <div className="flex items-center space-x-4">
@@ -88,7 +88,7 @@ const Auth = ({ onLogin }) => {
                     </div>
                 </div>
                 <div className="flex items-center justify-between text-powder-blue text-sm dark:text-dark-text-secondary">
-                    <span>© 2024 ChatGenius. All rights reserved.</span>
+                    <span>© 2024 ChatterBox. All rights reserved.</span>
                     <button
                         onClick={toggleTheme}
                         className="opacity-50 hover:opacity-100 transition-opacity duration-200"
@@ -115,7 +115,7 @@ const Auth = ({ onLogin }) => {
                             {isSignIn ? 'Welcome back' : 'Create account'}
                         </h2>
                         <p className="text-rose-quartz dark:text-dark-text-secondary">
-                            {isSignIn ? 'Sign in to continue to ChatGenius' : 'Start your journey with ChatGenius'}
+                            {isSignIn ? 'Sign in to continue to ChatterBox' : 'Start your journey with ChatterBox'}
                         </p>
                     </div>
 

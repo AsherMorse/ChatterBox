@@ -4,7 +4,7 @@ const Footer = ({ onToggle }) => {
     return (
         <footer className="bg-white shadow-sm p-4 mt-auto">
             <div className="max-w-7xl mx-auto flex justify-between items-center">
-                <p className="text-sm text-gray-600">© 2024 ChatGenius. All rights reserved.</p>
+                <p className="text-sm text-gray-600">© 2024 ChatterBox. All rights reserved.</p>
                 <button
                     onClick={onToggle}
                     className="text-sm text-gray-600 hover:text-gray-900"

@@ -24,7 +24,7 @@ const Header = ({ onLogout }) => {
         <header className="bg-white dark:bg-dark-bg-secondary border-b border-powder-blue dark:border-dark-border transition-colors duration-200">
             <div className="max-w-screen-2xl mx-auto px-6 h-16 flex justify-between items-center">
                 <div className="flex items-center space-x-2">
-                    <h1 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">ChatGenius</h1>
+                    <h1 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">ChatterBox</h1>
                     <span className="px-2 py-1 rounded-full bg-emerald/10 text-emerald text-xs font-medium">Online</span>
                 </div>
 

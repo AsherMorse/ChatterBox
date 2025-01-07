@@ -1,4 +1,4 @@
-# ChatGenius Design System
+# ChatterBox Design System
 
 ## 1. Colors
 
