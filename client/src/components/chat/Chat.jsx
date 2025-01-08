@@ -19,9 +19,15 @@ function Chat({ onLogout }) {
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const typingChannelRef = useRef(null);
+    const currentMessagesRef = useRef(messages);
     const currentUser = getUser();
     const currentChannelId = searchParams.get('channel');
     const navigate = useNavigate();
+
+    // Keep currentMessagesRef in sync with messages
+    useEffect(() => {
+        currentMessagesRef.current = messages;
+    }, [messages]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -86,6 +92,19 @@ function Chat({ onLogout }) {
                     break;
                 case 'message_deleted':
                     setMessages(prev => prev.filter(msg => msg.id !== event.messageId));
+                    break;
+                case 'reaction_change':
+                    console.log('Handling reaction change for message:', event.messageId);
+                    console.log('Current messages:', currentMessagesRef.current);
+                    // Only handle reactions for messages in this channel
+                    const targetMessage = currentMessagesRef.current.find(msg => msg.id === event.messageId);
+                    console.log('Found target message:', targetMessage);
+                    if (targetMessage) {
+                        console.log('Found message, triggering reaction refresh');
+                        // The MessageReactions component will handle the refresh through the event system
+                    } else {
+                        console.log('Message not found in current channel');
+                    }
                     break;
             }
         });
@@ -316,71 +335,12 @@ function Chat({ onLogout }) {
                                                                 <div className="flex-shrink-0">
                                                                     <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
                                                                         <MessageReactions 
-                                                                            reactions={message.reactions || []} 
                                                                             messageId={message.id}
-                                                                            onAddReaction={(emoji) => {
-                                                                                setMessages(prev => prev.map(msg => {
-                                                                                    if (msg.id !== message.id) return msg;
-                                                                                    const reactions = msg.reactions || [];
-                                                                                    const existingReaction = reactions.find(r => r.emoji === emoji);
-                                                                                    if (existingReaction) {
-                                                                                        return {
-                                                                                            ...msg,
-                                                                                            reactions: reactions.map(r => 
-                                                                                                r.emoji === emoji 
-                                                                                                    ? { ...r, count: r.count + 1 }
-                                                                                                    : r
-                                                                                            )
-                                                                                        };
-                                                                                    }
-                                                                                    return {
-                                                                                        ...msg,
-                                                                                        reactions: [...reactions, { emoji, count: 1 }]
-                                                                                    };
-                                                                                }));
-                                                                                // TODO: Send to backend
-                                                                            }}
+                                                                            currentUserId={currentUser.id}
                                                                         />
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            {message.reactions?.length > 0 && (
-                                                                <div className="mt-0.5 ml-0">
-                                                                    <div className="flex flex-wrap gap-1">
-                                                                        {message.reactions.map((reaction) => (
-                                                                            <div
-                                                                                key={reaction.emoji}
-                                                                                onClick={() => {
-                                                                                    setMessages(prev => prev.map(msg => {
-                                                                                        if (msg.id !== message.id) return msg;
-                                                                                        const reactions = msg.reactions || [];
-                                                                                        const existingReaction = reactions.find(r => r.emoji === reaction.emoji);
-                                                                                        if (existingReaction.count === 1) {
-                                                                                            return {
-                                                                                                ...msg,
-                                                                                                reactions: reactions.filter(r => r.emoji !== reaction.emoji)
-                                                                                            };
-                                                                                        }
-                                                                                        return {
-                                                                                            ...msg,
-                                                                                            reactions: reactions.map(r => 
-                                                                                                r.emoji === reaction.emoji 
-                                                                                                    ? { ...r, count: r.count - 1 }
-                                                                                                    : r
-                                                                                            )
-                                                                                        };
-                                                                                    }));
-                                                                                    // TODO: Send to backend
-                                                                                }}
-                                                                                className="flex items-center gap-1 bg-alice-blue dark:bg-dark-bg-primary px-1.5 py-0.5 rounded-full text-sm cursor-pointer hover:bg-powder-blue dark:hover:bg-dark-border transition-colors duration-200"
-                                                                            >
-                                                                                <span>{reaction.emoji}</span>
-                                                                                <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">{reaction.count}</span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>

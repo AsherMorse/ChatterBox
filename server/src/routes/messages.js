@@ -93,4 +93,133 @@ router.get('/channel/:channelId', authenticateJWT, async (req, res) => {
     }
 });
 
+// Add a reaction to a message
+router.post('/:messageId/reactions', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { emoji } = req.body;
+        const userId = req.user.id;
+
+        const { error: insertError } = await supabase
+            .from('message_reactions')
+            .insert({
+                message_id: messageId,
+                user_id: userId,
+                emoji
+            });
+
+        if (insertError) {
+            console.error('Error inserting reaction:', insertError);
+            return res.status(500).json({ message: 'Error inserting reaction' });
+        }
+
+        // Get updated reaction count for this emoji
+        const { data: reactions, error: countError } = await supabase
+            .from('message_reactions')
+            .select('emoji, user_id')
+            .eq('message_id', messageId)
+            .eq('emoji', emoji);
+
+        if (countError) {
+            console.error('Error getting reaction count:', countError);
+            return res.status(500).json({ message: 'Error getting reaction count' });
+        }
+
+        return res.status(201).json({ 
+            message: 'Reaction added successfully',
+            count: reactions.length,
+            users: reactions.map(r => r.user_id)
+        });
+    } catch (error) {
+        console.error('Reaction error:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Remove a reaction from a message
+router.delete('/:messageId/reactions', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { emoji } = req.body;
+        const userId = req.user.id;
+
+        const { error: deleteError } = await supabase
+            .from('message_reactions')
+            .delete()
+            .eq('message_id', messageId)
+            .eq('user_id', userId)
+            .eq('emoji', emoji);
+
+        if (deleteError) {
+            console.error('Error removing reaction:', deleteError);
+            return res.status(500).json({ message: 'Error removing reaction' });
+        }
+
+        // Get updated reaction count for this emoji
+        const { data: reactions, error: countError } = await supabase
+            .from('message_reactions')
+            .select('emoji, user_id')
+            .eq('message_id', messageId)
+            .eq('emoji', emoji);
+
+        if (countError) {
+            console.error('Error getting reaction count:', countError);
+            return res.status(500).json({ message: 'Error getting reaction count' });
+        }
+
+        return res.status(200).json({ 
+            message: 'Reaction removed successfully',
+            count: reactions.length,
+            users: reactions.map(r => r.user_id)
+        });
+    } catch (error) {
+        console.error('Reaction removal error:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Get reactions for a message
+router.get('/:messageId/reactions', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+
+        const { data: reactions, error } = await supabase
+            .from('message_reactions')
+            .select(`
+                emoji,
+                user_id,
+                users:user_id (
+                    id,
+                    username,
+                    avatar_url
+                )
+            `)
+            .eq('message_id', messageId);
+
+        if (error) {
+            console.error('Error fetching reactions:', error);
+            return res.status(500).json({ message: 'Error fetching reactions' });
+        }
+
+        // Group reactions by emoji
+        const groupedReactions = reactions.reduce((acc, reaction) => {
+            if (!acc[reaction.emoji]) {
+                acc[reaction.emoji] = {
+                    emoji: reaction.emoji,
+                    count: 0,
+                    users: []
+                };
+            }
+            acc[reaction.emoji].count++;
+            acc[reaction.emoji].users.push(reaction.users);
+            return acc;
+        }, {});
+
+        res.json(Object.values(groupedReactions));
+    } catch (error) {
+        console.error('Error in reactions retrieval:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export default router;

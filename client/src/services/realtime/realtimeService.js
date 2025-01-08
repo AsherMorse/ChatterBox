@@ -1,5 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Simple event emitter for reaction changes
+const reactionListeners = new Map();
+
+export const reactionEvents = {
+    addListener: (messageId, callback) => {
+        reactionListeners.set(messageId, callback);
+    },
+    removeListener: (messageId) => {
+        reactionListeners.delete(messageId);
+    },
+    emit: (messageId) => {
+        const callback = reactionListeners.get(messageId);
+        if (callback) {
+            callback();
+        }
+    }
+};
+
 const supabase = createClient(
     import.meta.env.VITE_SUPABASE_URL,
     import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -73,6 +91,25 @@ class RealtimeService {
                         type: 'message_deleted',
                         messageId: payload.old.id
                     });
+                }
+            )
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'message_reactions'
+                },
+                (payload) => {
+                    console.log('Reaction change:', payload);
+                    // Get the message_id from either new or old payload depending on the event type
+                    const messageId = payload.new?.message_id || payload.old?.message_id;
+                    onMessage({
+                        type: 'reaction_change',
+                        messageId,
+                        event: payload.eventType
+                    });
+                    // Emit the reaction change event
+                    reactionEvents.emit(messageId);
                 }
             );
 
