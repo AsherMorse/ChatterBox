@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { login, register } from '../services/api/auth';
+import { toggleTheme } from '../utils/theme';
 
 const Auth = ({ onLogin }) => {
     const [isSignIn, setIsSignIn] = useState(true);
@@ -12,31 +12,12 @@ const Auth = ({ onLogin }) => {
     const [isDark, setIsDark] = useState(false);
 
     useEffect(() => {
-        // Check system preference
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            setIsDark(true);
-            document.documentElement.classList.add('dark');
-        }
-
-        // Load saved preference
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            setIsDark(savedTheme === 'dark');
-            if (savedTheme === 'dark') {
-                document.documentElement.classList.add('dark');
-            }
-        }
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        setIsDark(isDarkMode);
     }, []);
 
-    const toggleTheme = () => {
-        setIsDark(!isDark);
-        if (!isDark) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
+    const handleToggleTheme = () => {
+        toggleTheme(isDark, setIsDark);
     };
 
     const handleSubmit = async (e) => {
@@ -90,7 +71,7 @@ const Auth = ({ onLogin }) => {
                 <div className="flex items-center justify-between text-powder-blue text-sm dark:text-dark-text-secondary">
                     <span>© 2024 ChatterBox. All rights reserved.</span>
                     <button
-                        onClick={toggleTheme}
+                        onClick={handleToggleTheme}
                         className="opacity-50 hover:opacity-100 transition-opacity duration-200"
                         aria-label="Toggle theme"
                     >
@@ -108,86 +89,77 @@ const Auth = ({ onLogin }) => {
             </div>
 
             {/* Right side - Auth Form */}
-            <div className="flex-1 flex items-center justify-center bg-alice-blue dark:bg-dark-bg-secondary p-8 transition-colors duration-200">
-                <div className="w-full max-w-md space-y-8 animate-scale">
+            <div className="flex-1 flex items-center justify-center p-8 bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
+                <div className="w-full max-w-md space-y-8 bg-white dark:bg-dark-bg-secondary rounded-2xl shadow-xl p-8 animate-scale">
                     <div className="text-center">
                         <h2 className="text-3xl font-bold text-gunmetal dark:text-dark-text-primary mb-2">
-                            {isSignIn ? 'Welcome back' : 'Create account'}
+                            {isSignIn ? 'Welcome back!' : 'Create an account'}
                         </h2>
                         <p className="text-rose-quartz dark:text-dark-text-secondary">
-                            {isSignIn ? 'Sign in to continue to ChatterBox' : 'Start your journey with ChatterBox'}
+                            {isSignIn ? 'Sign in to continue to ChatterBox' : 'Get started with ChatterBox'}
                         </p>
                     </div>
 
-                    {error && (
-                        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded animate-fadeIn">
-                            {error}
-                        </div>
-                    )}
-
-                    <form className="space-y-6" onSubmit={handleSubmit}>
-                        <div className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {!isSignIn && (
                             <div>
-                                <label htmlFor="email-address" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
-                                    Email address
+                                <label htmlFor="username" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
+                                    Username
                                 </label>
                                 <input
-                                    id="email-address"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    required
+                                    type="text"
+                                    id="username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
                                     className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
-                                    placeholder="Enter your email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Choose a username"
+                                    required
                                 />
                             </div>
+                        )}
 
-                            {!isSignIn && (
-                                <div>
-                                    <label htmlFor="username" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
-                                        Username
-                                    </label>
-                                    <input
-                                        id="username"
-                                        name="username"
-                                        type="text"
-                                        required
-                                        className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
-                                        placeholder="Choose a username"
-                                        value={username}
-                                        onChange={(e) => setUsername(e.target.value)}
-                                    />
-                                </div>
-                            )}
-
-                            <div>
-                                <label htmlFor="password" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
-                                    Password
-                                </label>
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type="password"
-                                    autoComplete="current-password"
-                                    required
-                                    className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
-                                    placeholder="Enter your password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                            </div>
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
+                                Email
+                            </label>
+                            <input
+                                type="email"
+                                id="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                                placeholder="Enter your email"
+                                required
+                            />
                         </div>
 
                         <div>
-                            <button
-                                type="submit"
-                                className="w-full px-4 py-2 bg-emerald text-white rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald transition-all duration-200"
-                            >
-                                {isSignIn ? 'Sign in' : 'Create account'}
-                            </button>
+                            <label htmlFor="password" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                                placeholder="Enter your password"
+                                required
+                            />
                         </div>
+
+                        {error && (
+                            <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3">
+                                {error}
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            className="w-full py-3 bg-emerald text-white rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald transition-all duration-200"
+                        >
+                            {isSignIn ? 'Sign In' : 'Create Account'}
+                        </button>
 
                         <div className="text-center">
                             <button
@@ -206,7 +178,7 @@ const Auth = ({ onLogin }) => {
 };
 
 Auth.propTypes = {
-    onLogin: PropTypes.func.isRequired,
+    onLogin: PropTypes.func.isRequired
 };
 
 export default Auth; 

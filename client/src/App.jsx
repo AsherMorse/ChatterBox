@@ -1,66 +1,42 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import Auth from './pages/Auth';
-import BrowseChannels from './pages/BrowseChannels';
-import Header from './components/common/Header';
-import Footer from './components/common/Footer';
 import Chat from './components/chat/Chat';
-import { getToken, logout } from './services/api/auth';
-import './styles/App.css';
+import BrowseChannels from './pages/BrowseChannels';
+import { getUser } from './services/api/auth';
+import { initializeTheme } from './utils/theme';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(getUser());
 
-  useEffect(() => {
-    const token = getToken();
-    setIsAuthenticated(!!token);
-  }, []);
+    useEffect(() => {
+        // Initialize theme when app loads
+        initializeTheme();
+    }, []);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
+    const handleLogin = (userData) => {
+        setUser(userData);
+    };
 
-  const handleLogout = () => {
-    logout();
-    setIsAuthenticated(false);
-  };
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+    };
 
-  return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            isAuthenticated ? (
-              <Navigate to="/chat" replace />
-            ) : (
-              <Auth onLogin={handleLogin} />
-            )
-          }
-        />
-        <Route
-          path="/chat"
-          element={
-            isAuthenticated ? (
-              <Chat onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-        <Route
-          path="/browse-channels"
-          element={
-            isAuthenticated ? (
-              <BrowseChannels />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-      </Routes>
-    </Router>
-  );
+    if (!user) {
+        return <Auth onLogin={handleLogin} />;
+    }
+
+    return (
+        <Router>
+            <Routes>
+                <Route path="/" element={<Chat onLogout={handleLogout} />} />
+                <Route path="/browse-channels" element={<BrowseChannels />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </Router>
+    );
 }
 
 export default App;

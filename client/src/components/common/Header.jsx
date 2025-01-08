@@ -1,5 +1,6 @@
-import PropTypes from 'prop-types';
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
+import { toggleTheme } from '../../utils/theme';
 
 const Header = ({ onLogout }) => {
     const [isDark, setIsDark] = useState(false);
@@ -9,15 +10,8 @@ const Header = ({ onLogout }) => {
         setIsDark(isDarkMode);
     }, []);
 
-    const toggleTheme = () => {
-        setIsDark(!isDark);
-        if (!isDark) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
+    const handleToggleTheme = () => {
+        toggleTheme(isDark, setIsDark);
     };
 
     return (
@@ -30,7 +24,7 @@ const Header = ({ onLogout }) => {
 
                 <div className="flex items-center space-x-4">
                     <button
-                        onClick={toggleTheme}
+                        onClick={handleToggleTheme}
                         className="p-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
                         aria-label="Toggle theme"
                     >
@@ -44,15 +38,14 @@ const Header = ({ onLogout }) => {
                             </svg>
                         )}
                     </button>
-
                     <button
                         onClick={onLogout}
-                        className="flex items-center space-x-1 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald transition-colors duration-200"
+                        className="p-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
+                        aria-label="Logout"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
-                        <span className="text-sm font-medium">Sign out</span>
                     </button>
                 </div>
             </div>
@@ -61,7 +54,7 @@ const Header = ({ onLogout }) => {
 };
 
 Header.propTypes = {
-    onLogout: PropTypes.func.isRequired,
+    onLogout: PropTypes.func.isRequired
 };
 
 export default Header; 
