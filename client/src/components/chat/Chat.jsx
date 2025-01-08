@@ -228,12 +228,12 @@ function Chat({ onLogout }) {
                                             <div
                                                 key={message.id}
                                                 className={`group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg py-0.5 px-2.5 transition-colors duration-200 ${
-                                                    isFirstInGroup ? 'mt-2' : 'mt-0'
+                                                    isLastInGroup ? 'pb-4' : 'mb-2'
                                                 }`}
                                             >
-                                                <div className="w-7 flex-shrink-0">
+                                                <div className="w-9 flex-shrink-0">
                                                     {isFirstInGroup && (
-                                                        <div className="w-7 h-7 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
+                                                        <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mt-0.5">
                                                             {message.sender?.avatar_url ? (
                                                                 <img
                                                                     src={message.sender.avatar_url}
@@ -250,8 +250,8 @@ function Chat({ onLogout }) {
                                                 </div>
                                                 <div className="flex-1 min-w-0 ml-2.5">
                                                     {isFirstInGroup && (
-                                                        <div className="flex items-baseline gap-1.5 mb-0">
-                                                            <span className="font-semibold text-sm text-gunmetal dark:text-dark-text-primary">
+                                                        <div className="flex items-baseline gap-1.5 mb-0.5">
+                                                            <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
                                                                 {message.sender?.username || 'Unknown User'}
                                                             </span>
                                                             <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
