@@ -118,7 +118,10 @@ class MessageService {
         // Start typing
         socket.on('typing_start', (channelId) => {
             socket.to(`channel:${channelId}`).emit('user_typing', {
-                user: socket.user.username,
+                user: {
+                    id: socket.user.id,
+                    username: socket.user.username
+                },
                 channelId
             });
         });
@@ -126,7 +129,10 @@ class MessageService {
         // Stop typing
         socket.on('typing_stop', (channelId) => {
             socket.to(`channel:${channelId}`).emit('user_stopped_typing', {
-                user: socket.user.username,
+                user: {
+                    id: socket.user.id,
+                    username: socket.user.username
+                },
                 channelId
             });
         });

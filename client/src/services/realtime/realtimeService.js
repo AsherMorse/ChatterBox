@@ -106,7 +106,7 @@ class RealtimeService {
         }
     }
 
-    // Subscribe to typing indicators
+    // Subscribe to typing indicators using Supabase Presence
     subscribeToTyping(channelId, onTypingUpdate) {
         console.log('Setting up typing subscription for channel:', channelId);
         
@@ -117,77 +117,36 @@ class RealtimeService {
         const channel = supabase
             .channel(`typing:${channelId}`)
             .on('presence', { event: 'sync' }, () => {
-                const typingUsers = this.getTypingUsers(channel);
-                console.log('Typing sync event:', typingUsers);
+                const state = channel.presenceState();
+                const typingUsers = Object.values(state).flat();
                 onTypingUpdate(typingUsers);
             })
-            .on('presence', { event: 'join' }, () => {
-                const typingUsers = this.getTypingUsers(channel);
-                console.log('Typing join event:', typingUsers);
+            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                onTypingUpdate(newPresences);
+            })
+            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+                const state = channel.presenceState();
+                const typingUsers = Object.values(state).flat();
                 onTypingUpdate(typingUsers);
             })
-            .on('presence', { event: 'leave' }, () => {
-                const typingUsers = this.getTypingUsers(channel);
-                console.log('Typing leave event:', typingUsers);
-                onTypingUpdate(typingUsers);
-            });
-
-        channel.subscribe(async (status) => {
-            console.log(`Typing subscription status for channel ${channelId}:`, status);
-        });
+            .subscribe();
 
         this.typingChannels.set(channelId, channel);
         return channel;
     }
 
-    // Start typing indicator
-    async startTyping(channel, user) {
-        try {
-            await channel.track({
-                user_id: user.id,
-                username: user.username,
-                isTyping: true
-            });
-            console.log('Started typing indicator for user:', user.username);
-        } catch (error) {
-            console.error('Error starting typing indicator:', error);
-        }
-    }
-
-    // Stop typing indicator
-    async stopTyping(channel) {
-        try {
-            await channel.untrack();
-            console.log('Stopped typing indicator');
-        } catch (error) {
-            console.error('Error stopping typing indicator:', error);
-        }
-    }
-
-    // Get list of users currently typing
-    getTypingUsers(channel) {
-        const presenceState = channel.presenceState();
-        const typingUsers = Object.values(presenceState)
-            .flat()
-            .filter(user => user.isTyping);
-        console.log('Current typing users:', typingUsers);
-        return typingUsers;
-    }
-
-    // Clean up all subscriptions
-    cleanup() {
-        console.log('Cleaning up all realtime subscriptions');
-        this.channels.forEach((channel, channelId) => {
-            this.unsubscribeFromChannel(channelId);
+    startTyping(channel, user) {
+        channel.track({
+            id: user.id,
+            username: user.username
         });
-        this.typingChannels.forEach((channel, channelId) => {
-            channel.unsubscribe();
-            supabase.removeChannel(channel);
-        });
-        this.channels.clear();
-        this.typingChannels.clear();
+    }
+
+    stopTyping(channel) {
+        channel.untrack();
     }
 }
 
+// Create a singleton instance
 const realtimeService = new RealtimeService();
 export default realtimeService; 

@@ -29,7 +29,7 @@ function Chat({ onLogout }) {
         setTypingUsers([]);
 
         // Subscribe to realtime messages
-        realtimeService.subscribeToChannel(currentChannelId, (event) => {
+        const channel = realtimeService.subscribeToChannel(currentChannelId, (event) => {
             let messageWithSender;
             switch (event.type) {
                 case 'new_message':
@@ -77,22 +77,16 @@ function Chat({ onLogout }) {
                 case 'message_deleted':
                     setMessages(prev => prev.filter(msg => msg.id !== event.messageId));
                     break;
-                case 'user_typing':
-                    if (event.userId !== currentUser.id) {
-                        setTypingUsers(prev => {
-                            if (!prev.includes(event.username)) {
-                                return [...prev, event.username];
-                            }
-                            return prev;
-                        });
-
-                        // Clear typing indicator after 3 seconds
-                        setTimeout(() => {
-                            setTypingUsers(prev => prev.filter(username => username !== event.username));
-                        }, 3000);
-                    }
-                    break;
             }
+        });
+
+        // Subscribe to typing indicators
+        const typingChannel = realtimeService.subscribeToTyping(currentChannelId, (typingUsers) => {
+            setTypingUsers(
+                typingUsers
+                    .filter(user => user.id !== currentUser.id)
+                    .map(user => user.username)
+            );
         });
 
         // Load initial messages
@@ -110,8 +104,11 @@ function Chat({ onLogout }) {
 
         return () => {
             realtimeService.unsubscribeFromChannel(currentChannelId);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
         };
-    }, [currentChannelId]);
+    }, [currentChannelId, currentUser.id]);
 
     useEffect(() => {
         scrollToBottom();
@@ -136,15 +133,23 @@ function Chat({ onLogout }) {
     const handleTyping = () => {
         if (typingChannelRef.current !== currentChannelId) {
             typingChannelRef.current = currentChannelId;
+            const channel = realtimeService.typingChannels.get(currentChannelId);
+            if (channel) {
+                realtimeService.startTyping(channel, currentUser);
+            }
         }
 
+        // Clear existing timeout
         if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current);
         }
 
-        realtimeService.sendTypingIndicator(currentChannelId);
-
+        // Set new timeout
         typingTimeoutRef.current = setTimeout(() => {
+            const channel = realtimeService.typingChannels.get(currentChannelId);
+            if (channel) {
+                realtimeService.stopTyping(channel);
+            }
             typingChannelRef.current = null;
         }, 3000);
     };
