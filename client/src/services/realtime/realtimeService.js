@@ -110,28 +110,36 @@ class RealtimeService {
     subscribeToTyping(channelId, onTypingUpdate) {
         console.log('Setting up typing subscription for channel:', channelId);
         
-        if (this.typingChannels.has(channelId)) {
-            return this.typingChannels.get(channelId);
+        const channelKey = `typing:${channelId}`;
+        if (this.typingChannels.has(channelKey)) {
+            return this.typingChannels.get(channelKey);
         }
 
         const channel = supabase
-            .channel(`typing:${channelId}`)
+            .channel(channelKey)
             .on('presence', { event: 'sync' }, () => {
                 const state = channel.presenceState();
+                console.log('Presence state:', state);
                 const typingUsers = Object.values(state).flat();
+                console.log('Typing users after sync:', typingUsers);
                 onTypingUpdate(typingUsers);
             })
             .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+                console.log('Join event:', { key, newPresences });
                 onTypingUpdate(newPresences);
             })
             .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+                console.log('Leave event:', { key, leftPresences });
                 const state = channel.presenceState();
                 const typingUsers = Object.values(state).flat();
+                console.log('Typing users after leave:', typingUsers);
                 onTypingUpdate(typingUsers);
             })
-            .subscribe();
+            .subscribe(async (status) => {
+                console.log(`Typing channel ${channelKey} status:`, status);
+            });
 
-        this.typingChannels.set(channelId, channel);
+        this.typingChannels.set(channelKey, channel);
         return channel;
     }
 
