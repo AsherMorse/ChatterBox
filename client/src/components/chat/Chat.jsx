@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ChannelList from './ChannelList';
 import CreateChannelModal from './CreateChannelModal';
@@ -7,6 +8,7 @@ import realtimeService from '../../services/realtime/realtimeService';
 import Header from '../common/Header';
 import PropTypes from 'prop-types';
 import { getUser } from '../../services/api/auth';
+import MessageReactions from './MessageReactions';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -248,52 +250,142 @@ function Chat({ onLogout }) {
                     {currentChannelId ? (
                         <>
                             {/* Messages area */}
-                            <div className="flex-1 overflow-y-auto p-2">
+                            <div className="flex-1 overflow-y-auto p-2 messages-container">
                                 <div className="space-y-0">
                                     {messages.map((message, index) => {
                                         const isFirstInGroup = index === 0 || messages[index - 1].sender?.id !== message.sender?.id;
                                         const isLastInGroup = index === messages.length - 1 || messages[index + 1].sender?.id !== message.sender?.id;
 
                                         return (
-                                            <div
-                                                key={message.id}
-                                                className={`group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg py-0.5 px-2.5 transition-colors duration-200 ${
-                                                    isLastInGroup ? 'pb-4' : 'mb-2'
-                                                }`}
-                                            >
-                                                <div className="w-9 flex-shrink-0">
-                                                    {isFirstInGroup && (
-                                                        <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mt-0.5">
-                                                            {message.sender?.avatar_url ? (
-                                                                <img
-                                                                    src={message.sender.avatar_url}
-                                                                    alt={message.sender.username}
-                                                                    className="w-full h-full object-cover"
-                                                                />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
-                                                                    {message.sender?.username?.[0]?.toUpperCase() || '?'}
+                                            <React.Fragment key={message.id}>
+                                                <div
+                                                    className="group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg py-0.5 px-2.5 transition-colors duration-200"
+                                                    onMouseEnter={() => {
+                                                        const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
+                                                        if (reactionComponent) {
+                                                            reactionComponent.dispatchEvent(new Event('mouseenter'));
+                                                        }
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        // Check if we're moving to another message cell
+                                                        const toElement = e.relatedTarget;
+                                                        const isMovingToAnotherMessage = toElement?.closest('.group');
+                                                        
+                                                        // If not moving to another message, trigger the leave event
+                                                        if (!isMovingToAnotherMessage) {
+                                                            const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
+                                                            if (reactionComponent) {
+                                                                reactionComponent.dispatchEvent(new Event('mouseleave'));
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="w-9 flex-shrink-0">
+                                                        {isFirstInGroup && (
+                                                            <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mt-0.5">
+                                                                {message.sender?.avatar_url ? (
+                                                                    <img
+                                                                        src={message.sender.avatar_url}
+                                                                        alt={message.sender.username}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                                                                        {message.sender?.username?.[0]?.toUpperCase() || '?'}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 ml-2.5">
+                                                        {isFirstInGroup && (
+                                                            <div className="flex items-baseline gap-1.5 mb-0.5">
+                                                                <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
+                                                                    {message.sender?.username || 'Unknown User'}
+                                                                </span>
+                                                                <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
+                                                                    {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center gap-2 group">
+                                                                <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
+                                                                    {message.content}
+                                                                </div>
+                                                                <div className="flex-shrink-0">
+                                                                    <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
+                                                                        <MessageReactions 
+                                                                            reactions={message.reactions || []} 
+                                                                            messageId={message.id}
+                                                                            onAddReaction={(emoji) => {
+                                                                                setMessages(prev => prev.map(msg => {
+                                                                                    if (msg.id !== message.id) return msg;
+                                                                                    const reactions = msg.reactions || [];
+                                                                                    const existingReaction = reactions.find(r => r.emoji === emoji);
+                                                                                    if (existingReaction) {
+                                                                                        return {
+                                                                                            ...msg,
+                                                                                            reactions: reactions.map(r => 
+                                                                                                r.emoji === emoji 
+                                                                                                    ? { ...r, count: r.count + 1 }
+                                                                                                    : r
+                                                                                            )
+                                                                                        };
+                                                                                    }
+                                                                                    return {
+                                                                                        ...msg,
+                                                                                        reactions: [...reactions, { emoji, count: 1 }]
+                                                                                    };
+                                                                                }));
+                                                                                // TODO: Send to backend
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {message.reactions?.length > 0 && (
+                                                                <div className="mt-0.5 ml-0">
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {message.reactions.map((reaction) => (
+                                                                            <div
+                                                                                key={reaction.emoji}
+                                                                                onClick={() => {
+                                                                                    setMessages(prev => prev.map(msg => {
+                                                                                        if (msg.id !== message.id) return msg;
+                                                                                        const reactions = msg.reactions || [];
+                                                                                        const existingReaction = reactions.find(r => r.emoji === reaction.emoji);
+                                                                                        if (existingReaction.count === 1) {
+                                                                                            return {
+                                                                                                ...msg,
+                                                                                                reactions: reactions.filter(r => r.emoji !== reaction.emoji)
+                                                                                            };
+                                                                                        }
+                                                                                        return {
+                                                                                            ...msg,
+                                                                                            reactions: reactions.map(r => 
+                                                                                                r.emoji === reaction.emoji 
+                                                                                                    ? { ...r, count: r.count - 1 }
+                                                                                                    : r
+                                                                                            )
+                                                                                        };
+                                                                                    }));
+                                                                                    // TODO: Send to backend
+                                                                                }}
+                                                                                className="flex items-center gap-1 bg-alice-blue dark:bg-dark-bg-primary px-1.5 py-0.5 rounded-full text-sm cursor-pointer hover:bg-powder-blue dark:hover:bg-dark-border transition-colors duration-200"
+                                                                            >
+                                                                                <span>{reaction.emoji}</span>
+                                                                                <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">{reaction.count}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0 ml-2.5">
-                                                    {isFirstInGroup && (
-                                                        <div className="flex items-baseline gap-1.5 mb-0.5">
-                                                            <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
-                                                                {message.sender?.username || 'Unknown User'}
-                                                            </span>
-                                                            <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
-                                                                {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
-                                                        {message.content}
                                                     </div>
                                                 </div>
-                                            </div>
+                                                {isLastInGroup && <div className="h-2" />}
+                                            </React.Fragment>
                                         );
                                     })}
                                     <div ref={messagesEndRef} />
