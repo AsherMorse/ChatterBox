@@ -17,6 +17,10 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
         try {
             const channelList = await getChannels();
             setChannels(channelList);
+            // Auto-select first channel if no channel is selected and channels exist
+            if (channelList.length > 0 && !selectedChannelId) {
+                onChannelSelect(channelList[0].id);
+            }
         } catch (error) {
             console.error('Error loading channels:', error);
         }
@@ -57,25 +61,47 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
 
             {/* Channel List */}
             <div className="space-y-0.5">
-                {channels.map((channel) => (
-                    <button
-                        key={channel.id}
-                        onClick={() => onChannelSelect(channel.id)}
-                        className={`w-full text-left px-3 py-2 rounded-lg transition-colors duration-200 group flex items-center space-x-2
-                            ${selectedChannelId === channel.id 
-                                ? 'bg-emerald/10 text-emerald' 
-                                : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
-                            }`}
-                    >
-                        <span className="text-lg">#</span>
-                        <span className="truncate">{channel.name}</span>
-                        {channel.is_private && (
-                            <svg className="w-4 h-4 ml-auto opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        )}
-                    </button>
-                ))}
+                {channels.length > 0 ? (
+                    channels.map((channel) => (
+                        <button
+                            key={channel.id}
+                            onClick={() => onChannelSelect(channel.id)}
+                            className={`w-full text-left px-3 py-2 rounded-lg transition-colors duration-200 group flex items-center space-x-2
+                                ${selectedChannelId === channel.id 
+                                    ? 'bg-emerald/10 text-emerald' 
+                                    : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
+                                }`}
+                        >
+                            <span className="text-lg">#</span>
+                            <span className="truncate">{channel.name}</span>
+                            {channel.is_private && (
+                                <svg className="w-4 h-4 ml-auto opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            )}
+                        </button>
+                    ))
+                ) : (
+                    <div className="text-center py-8">
+                        <p className="text-rose-quartz dark:text-dark-text-secondary mb-4">
+                            You haven't joined any channels yet
+                        </p>
+                        <div className="space-x-4">
+                            <button
+                                onClick={() => navigate('/browse-channels')}
+                                className="px-4 py-2 bg-emerald/10 text-emerald rounded-lg hover:bg-emerald/20 transition-colors duration-200"
+                            >
+                                Browse Channels
+                            </button>
+                            <button
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="px-4 py-2 bg-emerald/10 text-emerald rounded-lg hover:bg-emerald/20 transition-colors duration-200"
+                            >
+                                Create Channel
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Create Channel Modal */}
