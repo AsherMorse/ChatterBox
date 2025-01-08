@@ -19,7 +19,6 @@ const Header = ({ onLogout }) => {
             <div className="max-w-screen-2xl mx-auto px-6 h-16 flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                     <h1 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">ChatterBox</h1>
-                    <span className="px-2 py-1 rounded-full bg-emerald/10 text-emerald text-xs font-medium">Online</span>
                 </div>
 
                 <div className="flex items-center space-x-4">
@@ -37,15 +36,6 @@ const Header = ({ onLogout }) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                             </svg>
                         )}
-                    </button>
-                    <button
-                        onClick={onLogout}
-                        className="p-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
-                        aria-label="Logout"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
                     </button>
                 </div>
             </div>
