@@ -29,10 +29,14 @@ function MessageReactions({ messageId, currentUserId }) {
         loadReactions();
 
         // Subscribe to reaction changes
-        reactionEvents.addListener(messageId, loadReactions);
+        const handleReactionChange = () => {
+            loadReactions();
+        };
+
+        reactionEvents.on(messageId, handleReactionChange);
 
         return () => {
-            reactionEvents.removeListener(messageId);
+            reactionEvents.off(messageId, handleReactionChange);
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }

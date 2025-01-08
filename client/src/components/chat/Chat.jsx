@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ChannelList from './ChannelList';
+import DirectMessageList from './DirectMessageList';
 import CreateChannelModal from './CreateChannelModal';
+import CreateDMModal from './CreateDMModal';
 import { getMessages, sendMessage, getMessageSender } from '../../services/api/messageService';
+import { getDMMessages, sendDMMessage } from '../../services/api/dmService';
 import realtimeService from '../../services/realtime/realtimeService';
 import Header from '../common/Header';
 import PropTypes from 'prop-types';
@@ -16,12 +19,14 @@ function Chat({ onLogout }) {
     const [typingUsers, setTypingUsers] = useState([]);
     const [searchParams, setSearchParams] = useSearchParams();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isCreateDMModalOpen, setIsCreateDMModalOpen] = useState(false);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const typingChannelRef = useRef(null);
     const currentMessagesRef = useRef(messages);
     const currentUser = getUser();
     const currentChannelId = searchParams.get('channel');
+    const currentDMId = searchParams.get('dm');
     const navigate = useNavigate();
 
     // Keep currentMessagesRef in sync with messages
@@ -34,96 +39,42 @@ function Chat({ onLogout }) {
     };
 
     useEffect(() => {
-        if (!currentChannelId) {
+        if (!currentChannelId && !currentDMId) {
             setMessages([]);
             setTypingUsers([]);
             return;
         }
 
-        // Clear messages when changing channels
+        // Clear messages when changing channels/DMs
         setMessages([]);
         setTypingUsers([]);
 
         // Subscribe to realtime messages
-        const messageChannel = realtimeService.subscribeToChannel(currentChannelId, (event) => {
-            let messageWithSender;
-            switch (event.type) {
-                case 'new_message':
-                    messageWithSender = {
-                        ...event.message,
-                        sender: event.message.sender || {
-                            id: event.message.sender_id,
-                            username: 'Loading...',
-                            avatar_url: null
-                        }
-                    };
-                    setMessages(prev => [...prev, messageWithSender]);
+        const messageChannel = currentChannelId 
+            ? realtimeService.subscribeToChannel(currentChannelId, handleRealtimeMessage)
+            : realtimeService.subscribeToDM(currentDMId, handleRealtimeMessage);
 
-                    if (!event.message.sender) {
-                        getMessageSender(event.message.sender_id)
-                            .then(sender => {
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === event.message.id ? { ...msg, sender } : msg
-                                ));
-                            });
-                    }
-                    break;
-                case 'message_updated':
-                    messageWithSender = {
-                        ...event.message,
-                        sender: event.message.sender || {
-                            id: event.message.sender_id,
-                            username: 'Loading...',
-                            avatar_url: null
-                        }
-                    };
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === event.message.id ? messageWithSender : msg
-                    ));
-
-                    if (!event.message.sender) {
-                        getMessageSender(event.message.sender_id)
-                            .then(sender => {
-                                setMessages(prev => prev.map(msg =>
-                                    msg.id === event.message.id ? { ...msg, sender } : msg
-                                ));
-                            });
-                    }
-                    break;
-                case 'message_deleted':
-                    setMessages(prev => prev.filter(msg => msg.id !== event.messageId));
-                    break;
-                case 'reaction_change':
-                    console.log('Handling reaction change for message:', event.messageId);
-                    console.log('Current messages:', currentMessagesRef.current);
-                    // Only handle reactions for messages in this channel
-                    const targetMessage = currentMessagesRef.current.find(msg => msg.id === event.messageId);
-                    console.log('Found target message:', targetMessage);
-                    if (targetMessage) {
-                        console.log('Found message, triggering reaction refresh');
-                        // The MessageReactions component will handle the refresh through the event system
-                    } else {
-                        console.log('Message not found in current channel');
-                    }
-                    break;
-            }
-        });
-
-        // Subscribe to typing indicators
-        const typingChannel = realtimeService.subscribeToTyping(currentChannelId, (typingUsers) => {
-            console.log('Typing users update:', typingUsers);
-            setTypingUsers(
-                typingUsers
-                    .filter(user => user.id !== currentUser.id)
-                    .map(user => user.username)
-            );
-        });
+        // Subscribe to typing indicators (only for channels)
+        let typingChannel;
+        if (currentChannelId) {
+            typingChannel = realtimeService.subscribeToTyping(currentChannelId, (typingUsers) => {
+                console.log('Typing users update:', typingUsers);
+                setTypingUsers(
+                    typingUsers
+                        .filter(user => user.id !== currentUser.id)
+                        .map(user => user.username)
+                );
+            });
+            typingChannelRef.current = typingChannel;
+        }
 
         // Load initial messages
         const loadMessages = async () => {
             try {
-                const channelMessages = await getMessages(currentChannelId);
-                setMessages(channelMessages);
+                const loadedMessages = currentChannelId 
+                    ? await getMessages(currentChannelId)
+                    : await getDMMessages(currentDMId);
+                setMessages(loadedMessages);
                 scrollToBottom();
             } catch (error) {
                 console.error('Error loading messages:', error);
@@ -134,21 +85,84 @@ function Chat({ onLogout }) {
 
         return () => {
             // Cleanup message subscription
-            realtimeService.unsubscribeFromChannel(currentChannelId);
+            if (currentChannelId) {
+                realtimeService.unsubscribeFromChannel(currentChannelId);
+            } else if (currentDMId) {
+                realtimeService.unsubscribeFromDM(currentDMId);
+            }
             
             // Cleanup typing indicators
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
-            if (typingChannelRef.current === currentChannelId) {
-                const channel = realtimeService.typingChannels.get(currentChannelId);
-                if (channel) {
-                    realtimeService.stopTyping(channel);
-                }
+            if (typingChannelRef.current) {
+                realtimeService.stopTyping(typingChannelRef.current);
                 typingChannelRef.current = null;
             }
         };
-    }, [currentChannelId, currentUser.id]);
+    }, [currentChannelId, currentDMId, currentUser.id]);
+
+    const handleRealtimeMessage = (event) => {
+        let messageWithSender;
+        switch (event.type) {
+            case 'new_message':
+                messageWithSender = {
+                    ...event.message,
+                    sender: event.message.sender || {
+                        id: event.message.sender_id,
+                        username: 'Loading...',
+                        avatar_url: null
+                    }
+                };
+                setMessages(prev => [...prev, messageWithSender]);
+
+                if (!event.message.sender) {
+                    getMessageSender(event.message.sender_id)
+                        .then(sender => {
+                            setMessages(prev => prev.map(msg =>
+                                msg.id === event.message.id ? { ...msg, sender } : msg
+                            ));
+                        });
+                }
+                break;
+            case 'message_updated':
+                messageWithSender = {
+                    ...event.message,
+                    sender: event.message.sender || {
+                        id: event.message.sender_id,
+                        username: 'Loading...',
+                        avatar_url: null
+                    }
+                };
+                setMessages(prev => prev.map(msg =>
+                    msg.id === event.message.id ? messageWithSender : msg
+                ));
+
+                if (!event.message.sender) {
+                    getMessageSender(event.message.sender_id)
+                        .then(sender => {
+                            setMessages(prev => prev.map(msg =>
+                                msg.id === event.message.id ? { ...msg, sender } : msg
+                            ));
+                        });
+                }
+                break;
+            case 'message_deleted':
+                setMessages(prev => prev.filter(msg => msg.id !== event.messageId));
+                break;
+            case 'reaction_change':
+                console.log('Handling reaction change for message:', event.messageId);
+                console.log('Current messages:', currentMessagesRef.current);
+                const targetMessage = currentMessagesRef.current.find(msg => msg.id === event.messageId);
+                console.log('Found target message:', targetMessage);
+                if (targetMessage) {
+                    console.log('Found message, triggering reaction refresh');
+                } else {
+                    console.log('Message not found in current conversation');
+                }
+                break;
+        }
+    };
 
     useEffect(() => {
         scrollToBottom();
@@ -159,11 +173,15 @@ function Chat({ onLogout }) {
         if (!newMessage.trim()) return;
 
         try {
-            const message = {
-                content: newMessage.trim(),
-                channel_id: currentChannelId
-            };
-            await sendMessage(message);
+            if (currentChannelId) {
+                const message = {
+                    content: newMessage.trim(),
+                    channel_id: currentChannelId
+                };
+                await sendMessage(message);
+            } else if (currentDMId) {
+                await sendDMMessage(currentDMId, newMessage.trim());
+            }
             setNewMessage('');
         } catch (error) {
             console.error('Error sending message:', error);
@@ -171,25 +189,13 @@ function Chat({ onLogout }) {
     };
 
     const handleTyping = () => {
-        if (!currentChannelId) {
-            console.log('No channel selected, skipping typing indicator');
-            return;
-        }
-        
-        const channelKey = `typing:${currentChannelId}`;
-        console.log('Looking up typing channel:', channelKey);
-        const typingChannel = realtimeService.typingChannels.get(channelKey);
-        
-        if (!typingChannel) {
-            console.log('No typing channel found for:', channelKey);
+        if (!currentChannelId || !typingChannelRef.current) {
+            console.log('No channel selected or no typing channel, skipping typing indicator');
             return;
         }
 
-        if (typingChannelRef.current !== currentChannelId) {
-            console.log('Starting typing indicator for user:', currentUser.username);
-            typingChannelRef.current = currentChannelId;
-            realtimeService.startTyping(typingChannel, currentUser);
-        }
+        console.log('Starting typing indicator for user:', currentUser.username);
+        realtimeService.startTyping(typingChannelRef.current, currentUser);
 
         // Clear existing timeout
         if (typingTimeoutRef.current) {
@@ -199,24 +205,33 @@ function Chat({ onLogout }) {
         // Set new timeout
         typingTimeoutRef.current = setTimeout(() => {
             console.log('Stopping typing indicator for user:', currentUser.username);
-            if (typingChannel) {
-                realtimeService.stopTyping(typingChannel);
+            if (typingChannelRef.current) {
+                realtimeService.stopTyping(typingChannelRef.current);
             }
-            typingChannelRef.current = null;
         }, 3000);
     };
 
     const handleChannelSelect = (channelId) => {
         // Clear typing state when changing channels
         if (typingChannelRef.current) {
-            const channelKey = `typing:${typingChannelRef.current}`;
-            const channel = realtimeService.typingChannels.get(channelKey);
-            if (channel) {
-                realtimeService.stopTyping(channel);
-            }
+            realtimeService.stopTyping(typingChannelRef.current);
             typingChannelRef.current = null;
         }
         setSearchParams({ channel: channelId });
+    };
+
+    const handleDMSelect = (dmId) => {
+        // Clear typing state when changing DMs
+        if (typingChannelRef.current) {
+            realtimeService.stopTyping(typingChannelRef.current);
+            typingChannelRef.current = null;
+        }
+        setSearchParams({ dm: dmId });
+    };
+
+    const handleCreateDM = (dmId) => {
+        handleDMSelect(dmId);
+        setIsCreateDMModalOpen(false);
     };
 
     return (
@@ -225,13 +240,48 @@ function Chat({ onLogout }) {
             <div className="flex h-[calc(100vh-64px)]">
                 {/* Sidebar */}
                 <div className="w-72 bg-white dark:bg-dark-bg-secondary border-r border-powder-blue dark:border-dark-border transition-colors duration-200 flex flex-col">
-                    <div className="p-6 flex-1">
-                        <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary mb-6">Channels</h2>
-                        <ChannelList
-                            onChannelSelect={handleChannelSelect}
-                            selectedChannelId={currentChannelId}
-                        />
+                    <div className="p-6 flex-1 overflow-y-auto">
+                        {/* Channels Section */}
+                        <div className="mb-8">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Channels</h2>
+                                <button
+                                    onClick={() => setIsCreateModalOpen(true)}
+                                    className="p-1 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200"
+                                    title="Create Channel"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <ChannelList
+                                onChannelSelect={handleChannelSelect}
+                                selectedChannelId={currentChannelId}
+                            />
+                        </div>
+
+                        {/* Direct Messages Section */}
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Direct Messages</h2>
+                                <button
+                                    onClick={() => setIsCreateDMModalOpen(true)}
+                                    className="p-1 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200"
+                                    title="New Message"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <DirectMessageList
+                                onDMSelect={handleDMSelect}
+                                selectedDMId={currentDMId}
+                            />
+                        </div>
                     </div>
+
                     {/* Profile Section */}
                     <div className="p-4 border-t border-powder-blue dark:border-dark-border flex items-center">
                         <div className="w-10 h-10 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mr-3">
@@ -264,201 +314,152 @@ function Chat({ onLogout }) {
                     </div>
                 </div>
 
-                {/* Main chat area */}
-                <div className="flex-1 flex flex-col bg-white dark:bg-dark-bg-secondary transition-colors duration-200">
-                    {currentChannelId ? (
-                        <>
-                            {/* Messages area */}
-                            <div className="flex-1 overflow-y-auto p-2 messages-container">
-                                <div className="space-y-0">
-                                    {messages.map((message, index) => {
-                                        const isFirstInGroup = index === 0 || messages[index - 1].sender?.id !== message.sender?.id;
-                                        const isLastInGroup = index === messages.length - 1 || messages[index + 1].sender?.id !== message.sender?.id;
+                {/* Main Chat Area */}
+                <div className="flex-1 flex flex-col bg-white dark:bg-dark-bg-secondary">
+                    {/* Chat Header */}
+                    {currentChannelId && (
+                        <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center">
+                            <div className="flex items-center gap-2">
+                                <span className="text-2xl text-gunmetal dark:text-dark-text-primary">#</span>
+                                <h2 className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
+                                    {/* Replace with actual channel name */}
+                                    General
+                                </h2>
+                            </div>
+                        </div>
+                    )}
+                    {currentDMId && (
+                        <DirectMessageHeader user={messages[0]?.sender} />
+                    )}
 
-                                        return (
-                                            <React.Fragment key={message.id}>
-                                                <div
-                                                    className="group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg py-0.5 px-2.5 transition-colors duration-200"
-                                                    onMouseEnter={() => {
-                                                        const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
-                                                        if (reactionComponent) {
-                                                            reactionComponent.dispatchEvent(new Event('mouseenter'));
-                                                        }
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        // Check if we're moving to another message cell
-                                                        const toElement = e.relatedTarget;
-                                                        const isMovingToAnotherMessage = toElement?.closest('.group');
-                                                        
-                                                        // If not moving to another message, trigger the leave event
-                                                        if (!isMovingToAnotherMessage) {
-                                                            const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
-                                                            if (reactionComponent) {
-                                                                reactionComponent.dispatchEvent(new Event('mouseleave'));
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    <div className="w-9 flex-shrink-0">
-                                                        {isFirstInGroup && (
-                                                            <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mt-0.5">
-                                                                {message.sender?.avatar_url ? (
-                                                                    <img
-                                                                        src={message.sender.avatar_url}
-                                                                        alt={message.sender.username}
-                                                                        className="w-full h-full object-cover"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
-                                                                        {message.sender?.username?.[0]?.toUpperCase() || '?'}
-                                                                    </div>
-                                                                )}
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto px-6 py-4">
+                        {/* Messages */}
+                        <div className="space-y-1">
+                            {messages.map((message, index) => {
+                                const isFirstInGroup = index === 0 || messages[index - 1].sender?.id !== message.sender?.id;
+                                const isLastInGroup = index === messages.length - 1 || messages[index + 1].sender?.id !== message.sender?.id;
+
+                                return (
+                                    <React.Fragment key={message.id}>
+                                        <div
+                                            className="group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg py-0.5 px-2.5 transition-colors duration-200"
+                                            onMouseEnter={() => {
+                                                const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
+                                                if (reactionComponent) {
+                                                    reactionComponent.dispatchEvent(new Event('mouseenter'));
+                                                }
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                const toElement = e.relatedTarget;
+                                                const isMovingToAnotherMessage = toElement?.closest('.group');
+                                                
+                                                if (!isMovingToAnotherMessage) {
+                                                    const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
+                                                    if (reactionComponent) {
+                                                        reactionComponent.dispatchEvent(new Event('mouseleave'));
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <div className="w-9 flex-shrink-0">
+                                                {isFirstInGroup && (
+                                                    <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mt-0.5">
+                                                        {message.sender?.avatar_url ? (
+                                                            <img
+                                                                src={message.sender.avatar_url}
+                                                                alt={message.sender.username}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                                                                {message.sender?.username?.[0]?.toUpperCase() || '?'}
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="flex-1 min-w-0 ml-2.5">
-                                                        {isFirstInGroup && (
-                                                            <div className="flex items-baseline gap-1.5 mb-0.5">
-                                                                <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
-                                                                    {message.sender?.username || 'Unknown User'}
-                                                                </span>
-                                                                <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
-                                                                    {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex flex-col">
-                                                            <div className="flex items-center gap-2 group">
-                                                                <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
-                                                                    {message.content}
-                                                                </div>
-                                                                <div className="flex-shrink-0">
-                                                                    <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
-                                                                        <MessageReactions 
-                                                                            messageId={message.id}
-                                                                            currentUserId={currentUser.id}
-                                                                        />
-                                                                    </div>
-                                                                </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 ml-2.5">
+                                                {isFirstInGroup && (
+                                                    <div className="flex items-baseline gap-1.5 mb-0.5">
+                                                        <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
+                                                            {message.sender?.username || 'Unknown User'}
+                                                        </span>
+                                                        <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
+                                                            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2 group">
+                                                        <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
+                                                            {message.content}
+                                                        </div>
+                                                        <div className="flex-shrink-0">
+                                                            <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
+                                                                <MessageReactions 
+                                                                    messageId={message.id}
+                                                                    currentUserId={currentUser.id}
+                                                                />
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {isLastInGroup && <div className="h-2" />}
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                    <div ref={messagesEndRef} />
-                                </div>
-                            </div>
-
-                            {/* Typing indicator */}
-                            {typingUsers.length > 0 && (
-                                <div className="px-6 py-2 text-sm text-rose-quartz dark:text-dark-text-secondary animate-pulse">
-                                    {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
-                                </div>
-                            )}
-
-                            {/* Message input */}
-                            <div className="p-4 border-t border-powder-blue dark:border-dark-border">
-                                <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
-                                    <div className="flex-1 flex flex-col space-y-2">
-                                        <div className="flex items-center space-x-2">
-                                            <button
-                                                type="button"
-                                                className="flex items-center justify-center w-9 h-9 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 rounded-lg hover:bg-alice-blue dark:hover:bg-dark-bg-primary"
-                                                aria-label="Add attachment"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                            </button>
-                                            <div className="flex-1">
-                                                <input
-                                                    type="text"
-                                                    value={newMessage}
-                                                    onChange={(e) => {
-                                                        setNewMessage(e.target.value);
-                                                        handleTyping();
-                                                    }}
-                                                    placeholder="Type a message..."
-                                                    className="w-full px-4 py-2 bg-alice-blue dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
-                                                />
                                             </div>
-                                            <button
-                                                type="button"
-                                                className="flex items-center justify-center w-9 h-9 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 rounded-lg hover:bg-alice-blue dark:hover:bg-dark-bg-primary"
-                                                aria-label="Add emoji"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            </button>
                                         </div>
-                                        {/* Image preview area - hidden by default */}
-                                        <div className="hidden space-x-2">
-                                            <div className="relative inline-block">
-                                                <div className="relative w-20 h-20 rounded-lg bg-alice-blue dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border overflow-hidden">
-                                                    <img src="" alt="" className="w-full h-full object-cover" />
-                                                    <button className="absolute top-1 right-1 p-1 bg-gunmetal/50 hover:bg-gunmetal text-white rounded-full">
-                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
+                                        {isLastInGroup && <div className="h-2" />}
+                                    </React.Fragment>
+                                );
+                            })}
+                            <div ref={messagesEndRef} />
+                        </div>
+                    </div>
+
+                    {/* Message Input */}
+                    <div className="px-6 py-4 border-t border-powder-blue dark:border-dark-border">
+                        <form onSubmit={handleSendMessage}>
+                            <div className="relative">
+                                {typingUsers.length > 0 && (
+                                    <div className="absolute -top-10 left-4 transform animate-typingIndicator">
+                                        <div className="bg-white dark:bg-dark-bg-primary shadow-lg rounded-lg px-3 py-1.5 border border-powder-blue dark:border-dark-border">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex space-x-1">
+                                                    <div className="w-1.5 h-1.5 bg-emerald rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                    <div className="w-1.5 h-1.5 bg-emerald rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                    <div className="w-1.5 h-1.5 bg-emerald rounded-full animate-bounce"></div>
                                                 </div>
+                                                <span className="text-sm text-rose-quartz dark:text-dark-text-secondary whitespace-nowrap">
+                                                    {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
-                                    <button
-                                        type="submit"
-                                        disabled={!newMessage.trim()}
-                                        className="flex items-center justify-center w-9 h-9 bg-emerald text-white rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald disabled:opacity-50 transition-all duration-200"
-                                        aria-label="Send message"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14m0 0l-6-6m6 6l-6 6" />
-                                        </svg>
-                                    </button>
-                                </form>
+                                )}
+                                <input
+                                    type="text"
+                                    value={newMessage}
+                                    onChange={(e) => {
+                                        setNewMessage(e.target.value);
+                                        handleTyping();
+                                    }}
+                                    placeholder={currentChannelId ? "Message #general" : "Send a message"}
+                                    className="w-full px-4 py-2 bg-alice-blue dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary"
+                                />
                             </div>
-                        </>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center">
-                            <div className="text-center p-8">
-                                <h3 className="text-2xl font-bold text-gunmetal dark:text-dark-text-primary mb-4">
-                                    Welcome to ChatterBox! 👋
-                                </h3>
-                                <p className="text-rose-quartz dark:text-dark-text-secondary mb-8">
-                                    Get started by joining or creating a channel
-                                </p>
-                                <div className="space-x-4">
-                                    <button
-                                        onClick={() => navigate('/browse-channels')}
-                                        className="px-6 py-3 bg-emerald/10 text-emerald rounded-lg hover:bg-emerald/20 transition-colors duration-200"
-                                    >
-                                        Browse Channels
-                                    </button>
-                                    <button
-                                        onClick={() => setIsCreateModalOpen(true)}
-                                        className="px-6 py-3 bg-emerald/10 text-emerald rounded-lg hover:bg-emerald/20 transition-colors duration-200"
-                                    >
-                                        Create Channel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        </form>
+                    </div>
                 </div>
             </div>
             
-            {/* Create Channel Modal */}
+            {/* Modals */}
             <CreateChannelModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
-                onChannelCreated={(channel) => {
-                    setIsCreateModalOpen(false);
-                    handleChannelSelect(channel.id);
-                }}
+            />
+            <CreateDMModal
+                isOpen={isCreateDMModalOpen}
+                onClose={() => setIsCreateDMModalOpen(false)}
+                onDMCreated={handleCreateDM}
             />
         </div>
     );

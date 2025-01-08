@@ -1,34 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../config/supabase';
+import EventEmitter from '../../utils/EventEmitter';
 
-// Simple event emitter for reaction changes
-const reactionListeners = new Map();
-
-export const reactionEvents = {
-    addListener: (messageId, callback) => {
-        reactionListeners.set(messageId, callback);
-    },
-    removeListener: (messageId) => {
-        reactionListeners.delete(messageId);
-    },
-    emit: (messageId) => {
-        const callback = reactionListeners.get(messageId);
-        if (callback) {
-            callback();
-        }
-    }
-};
-
-const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY,
-    {
-        realtime: {
-            params: {
-                eventsPerSecond: 10
-            }
-        }
-    }
-);
+// Configure EventEmitter for reactions
+const reactionEvents = new EventEmitter();
 
 class RealtimeService {
     constructor() {
@@ -56,7 +30,7 @@ class RealtimeService {
                     filter: `channel_id=eq.${channelId}`
                 },
                 (payload) => {
-                    console.log('New message received:', payload);
+                    console.log('New message:', payload);
                     onMessage({
                         type: 'new_message',
                         message: payload.new
@@ -101,14 +75,12 @@ class RealtimeService {
                 },
                 (payload) => {
                     console.log('Reaction change:', payload);
-                    // Get the message_id from either new or old payload depending on the event type
                     const messageId = payload.new?.message_id || payload.old?.message_id;
                     onMessage({
                         type: 'reaction_change',
                         messageId,
                         event: payload.eventType
                     });
-                    // Emit the reaction change event
                     reactionEvents.emit(messageId);
                 }
             );
@@ -132,6 +104,100 @@ class RealtimeService {
         return channel;
     }
 
+    subscribeToDM(dmId, onMessage) {
+        console.log('Subscribing to DM:', dmId);
+        
+        // If already subscribed to this DM, return existing subscription
+        if (this.channels.has(`dm:${dmId}`)) {
+            console.log('Already subscribed to DM:', dmId);
+            return this.channels.get(`dm:${dmId}`);
+        }
+
+        // Create a new subscription
+        const channel = supabase
+            .channel(`dm:${dmId}`)
+            .on('postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `dm_id=eq.${dmId}`
+                },
+                (payload) => {
+                    console.log('New DM message:', payload);
+                    onMessage({
+                        type: 'new_message',
+                        message: payload.new
+                    });
+                }
+            )
+            .on('postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `dm_id=eq.${dmId}`
+                },
+                (payload) => {
+                    console.log('DM message updated:', payload);
+                    onMessage({
+                        type: 'message_updated',
+                        message: payload.new
+                    });
+                }
+            )
+            .on('postgres_changes',
+                {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `dm_id=eq.${dmId}`
+                },
+                (payload) => {
+                    console.log('DM message deleted:', payload);
+                    onMessage({
+                        type: 'message_deleted',
+                        messageId: payload.old.id
+                    });
+                }
+            )
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'message_reactions'
+                },
+                (payload) => {
+                    console.log('DM reaction change:', payload);
+                    const messageId = payload.new?.message_id || payload.old?.message_id;
+                    onMessage({
+                        type: 'reaction_change',
+                        messageId,
+                        event: payload.eventType
+                    });
+                    reactionEvents.emit(messageId);
+                }
+            );
+
+        // Subscribe and handle status
+        channel.subscribe(async (status) => {
+            console.log(`Realtime subscription status for DM ${dmId}:`, status);
+            if (status === 'SUBSCRIBED') {
+                console.log('Successfully subscribed to DM:', dmId);
+            } else if (status === 'CLOSED') {
+                console.log('DM closed:', dmId);
+                this.channels.delete(`dm:${dmId}`);
+            } else if (status === 'CHANNEL_ERROR') {
+                console.error('DM error for:', dmId);
+                this.channels.delete(`dm:${dmId}`);
+            }
+        });
+
+        // Store the subscription
+        this.channels.set(`dm:${dmId}`, channel);
+        return channel;
+    }
+
     unsubscribeFromChannel(channelId) {
         console.log('Unsubscribing from channel:', channelId);
         const channel = this.channels.get(channelId);
@@ -143,55 +209,98 @@ class RealtimeService {
         }
     }
 
-    // Subscribe to typing indicators using Supabase Presence
+    unsubscribeFromDM(dmId) {
+        console.log('Unsubscribing from DM:', dmId);
+        const channel = this.channels.get(`dm:${dmId}`);
+        if (channel) {
+            channel.unsubscribe();
+            supabase.removeChannel(channel);
+            this.channels.delete(`dm:${dmId}`);
+            console.log('Successfully unsubscribed from DM:', dmId);
+        }
+    }
+
     subscribeToTyping(channelId, onTypingUpdate) {
-        console.log('Setting up typing subscription for channel:', channelId);
-        
         const channelKey = `typing:${channelId}`;
+        console.log('Setting up typing subscription for:', channelKey);
+        
         if (this.typingChannels.has(channelKey)) {
+            console.log('Already subscribed to typing for:', channelKey);
             return this.typingChannels.get(channelKey);
         }
 
-        const channel = supabase
-            .channel(channelKey)
-            .on('presence', { event: 'sync' }, () => {
-                const state = channel.presenceState();
-                console.log('Presence state:', state);
-                const typingUsers = Object.values(state).flat();
-                console.log('Typing users after sync:', typingUsers);
-                onTypingUpdate(typingUsers);
-            })
-            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                console.log('Join event:', { key, newPresences });
-                onTypingUpdate(newPresences);
-            })
-            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                console.log('Leave event:', { key, leftPresences });
-                const state = channel.presenceState();
-                const typingUsers = Object.values(state).flat();
-                console.log('Typing users after leave:', typingUsers);
-                onTypingUpdate(typingUsers);
-            })
-            .subscribe(async (status) => {
-                console.log(`Typing channel ${channelKey} status:`, status);
-            });
+        const typingUsers = new Set();
+        const channel = supabase.channel(channelKey);
 
-        this.typingChannels.set(channelKey, channel);
+        channel.on('presence', { event: 'sync' }, () => {
+            console.log('Presence sync for:', channelKey);
+            const newState = channel.presenceState();
+            typingUsers.clear();
+            Object.values(newState).forEach(presences => {
+                presences.forEach(presence => {
+                    if (presence.isTyping) {
+                        typingUsers.add(presence);
+                    }
+                });
+            });
+            onTypingUpdate(Array.from(typingUsers));
+        });
+
+        channel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
+            console.log('Presence join:', newPresences);
+            newPresences.forEach(presence => {
+                if (presence.isTyping) {
+                    typingUsers.add(presence);
+                }
+            });
+            onTypingUpdate(Array.from(typingUsers));
+        });
+
+        channel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+            console.log('Presence leave:', leftPresences);
+            leftPresences.forEach(presence => {
+                typingUsers.delete(presence);
+            });
+            onTypingUpdate(Array.from(typingUsers));
+        });
+
+        // Subscribe and handle status
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('Successfully subscribed to typing:', channelKey);
+                // Track the channel after successful subscription
+                this.typingChannels.set(channelKey, channel);
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                console.log('Typing channel closed or error:', channelKey);
+                this.typingChannels.delete(channelKey);
+            }
+        });
+
         return channel;
     }
 
     startTyping(channel, user) {
+        if (!channel) {
+            console.error('No channel provided for typing indicator');
+            return;
+        }
+        console.log('Starting typing indicator for user:', user.username);
         channel.track({
+            isTyping: true,
             id: user.id,
             username: user.username
         });
     }
 
     stopTyping(channel) {
+        if (!channel) {
+            console.error('No channel provided for typing indicator');
+            return;
+        }
+        console.log('Stopping typing indicator');
         channel.untrack();
     }
 }
 
-// Create a singleton instance
 const realtimeService = new RealtimeService();
-export default realtimeService; 
+export { realtimeService as default, reactionEvents }; 
