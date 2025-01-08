@@ -10,11 +10,24 @@ const Auth = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [error, setError] = useState('');
     const [isDark, setIsDark] = useState(false);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
 
     useEffect(() => {
         const isDarkMode = document.documentElement.classList.contains('dark');
         setIsDark(isDarkMode);
     }, []);
+
+    // Handle background color during transition
+    useEffect(() => {
+        if (isLoggingIn) {
+            document.body.style.backgroundColor = isDark ? '#1A1D1D' : '#F8FAFD';
+        } else {
+            document.body.style.backgroundColor = '';
+        }
+        return () => {
+            document.body.style.backgroundColor = '';
+        };
+    }, [isLoggingIn, isDark]);
 
     const handleToggleTheme = () => {
         toggleTheme(isDark, setIsDark);
@@ -25,6 +38,7 @@ const Auth = ({ onLogin }) => {
         setError('');
 
         try {
+            setIsLoggingIn(true);
             let result;
             if (isSignIn) {
                 result = await login(email, password);
@@ -32,8 +46,12 @@ const Auth = ({ onLogin }) => {
                 result = await register(email, password, username);
             }
 
-            onLogin(result.user);
+            // Wait for animation
+            setTimeout(() => {
+                onLogin(result.user);
+            }, 300);
         } catch (err) {
+            setIsLoggingIn(false);
             setError(err.response?.data?.message || 'An error occurred');
         }
     };
@@ -47,28 +65,28 @@ const Auth = ({ onLogin }) => {
     };
 
     return (
-        <div className="min-h-screen flex">
+        <div className={`min-h-screen flex transform transition-all duration-300 ${isLoggingIn ? 'scale-105 opacity-0' : 'scale-100 opacity-100'}`}>
             {/* Left side - Brand/Image */}
-            <div className="hidden lg:flex lg:w-2/5 bg-gunmetal text-alice-blue flex-col justify-between p-12 dark:bg-dark-bg-primary">
+            <div className="hidden lg:flex lg:w-2/5 bg-gunmetal dark:bg-dark-bg-secondary flex-col justify-between p-12">
                 <div className="animate-fadeIn">
-                    <h1 className="text-4xl font-bold mb-4">ChatterBox</h1>
-                    <p className="text-lg text-gray-600 mb-8">Connect, collaborate, and communicate seamlessly with ChatterBox</p>
+                    <h1 className="text-4xl font-bold text-alice-blue dark:text-dark-text-primary mb-4">ChatterBox</h1>
+                    <p className="text-lg text-powder-blue dark:text-dark-text-secondary mb-8">Connect, collaborate, and communicate seamlessly with ChatterBox</p>
                 </div>
                 <div className="space-y-6 animate-slideUp">
                     <div className="flex items-center space-x-4">
                         <div className="w-1 h-8 bg-emerald"></div>
-                        <p className="text-rose-quartz dark:text-dark-text-secondary">Real-time messaging</p>
+                        <p className="text-powder-blue dark:text-dark-text-primary text-lg">Real-time messaging</p>
                     </div>
                     <div className="flex items-center space-x-4">
                         <div className="w-1 h-8 bg-emerald"></div>
-                        <p className="text-rose-quartz dark:text-dark-text-secondary">Secure communications</p>
+                        <p className="text-powder-blue dark:text-dark-text-primary text-lg">Secure communications</p>
                     </div>
                     <div className="flex items-center space-x-4">
                         <div className="w-1 h-8 bg-emerald"></div>
-                        <p className="text-rose-quartz dark:text-dark-text-secondary">Team collaboration</p>
+                        <p className="text-powder-blue dark:text-dark-text-primary text-lg">Team collaboration</p>
                     </div>
                 </div>
-                <div className="flex items-center justify-between text-powder-blue text-sm dark:text-dark-text-secondary">
+                <div className="flex items-center justify-between text-powder-blue dark:text-dark-text-secondary">
                     <span>© 2024 ChatterBox. All rights reserved.</span>
                     <button
                         onClick={handleToggleTheme}
@@ -89,8 +107,8 @@ const Auth = ({ onLogin }) => {
             </div>
 
             {/* Right side - Auth Form */}
-            <div className="flex-1 flex items-center justify-center p-8 bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
-                <div className="w-full max-w-md space-y-8 bg-white dark:bg-dark-bg-secondary rounded-2xl shadow-xl p-8 animate-scale">
+            <div className="flex-1 flex items-center justify-center p-8 bg-[#F8FAFD] dark:bg-dark-bg-primary transition-colors duration-200">
+                <div className="w-full max-w-md space-y-8 animate-scale">
                     <div className="text-center">
                         <h2 className="text-3xl font-bold text-gunmetal dark:text-dark-text-primary mb-2">
                             {isSignIn ? 'Welcome back!' : 'Create an account'}
