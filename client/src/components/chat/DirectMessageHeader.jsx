@@ -56,7 +56,7 @@ function DirectMessageHeader({ user: initialUser }) {
                         </div>
                     )}
                     <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-dark-bg-secondary">
-                        <div className="w-full h-full rounded-full" style={{ backgroundColor: getPresenceColor(user.presence) }} />
+                        <div className="w-full h-full rounded-full" style={{ backgroundColor: user.custom_status_color || getPresenceColor(user.presence) }} />
                     </div>
                 </div>
                 <div className="flex flex-col">

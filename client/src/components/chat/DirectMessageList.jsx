@@ -121,9 +121,11 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
                                 )}
                                 <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-bg-secondary">
                                     <div className="w-full h-full rounded-full" style={{ 
-                                        backgroundColor: user.presence === 'online' ? '#10B981' 
+                                        backgroundColor: user.custom_status_color || (
+                                            user.presence === 'online' ? '#10B981' 
                                             : user.presence === 'idle' ? '#F59E0B' 
                                             : '#94A3B8'
+                                        )
                                     }} />
                                 </div>
                             </div>
