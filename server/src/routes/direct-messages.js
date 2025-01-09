@@ -22,13 +22,13 @@ router.get('/', authenticateJWT, async (req, res) => {
                     id,
                     username,
                     avatar_url,
-                    status
+                    presence
                 ),
                 user2:user2_id(
                     id,
                     username,
                     avatar_url,
-                    status
+                    presence
                 )
             `)
             .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
@@ -170,13 +170,13 @@ router.get('/:dmId', authenticateJWT, async (req, res) => {
                     id,
                     username,
                     avatar_url,
-                    status
+                    presence
                 ),
                 user2:user2_id(
                     id,
                     username,
                     avatar_url,
-                    status
+                    presence
                 )
             `)
             .eq('dm_id', dmId)

@@ -41,7 +41,7 @@ router.post('/register', async (req, res) => {
                 email,
                 password_hash,
                 username,
-                status: 'offline'
+                presence: 'offline'
             })
             .select()
             .single();

@@ -2,11 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { getChannels } from '../../services/api/channelService';
-import CreateChannelModal from './CreateChannelModal';
 
-function ChannelList({ onChannelSelect, selectedChannelId }) {
+function ChannelList({ onChannelSelect, selectedChannelId, onCreateChannel }) {
     const [channels, setChannels] = useState([]);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -26,11 +24,6 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
         }
     };
 
-    const handleChannelCreated = (channel) => {
-        setChannels(prev => [...prev, channel]);
-        onChannelSelect(channel.id);
-    };
-
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -48,7 +41,7 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
                         </svg>
                     </button>
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={onCreateChannel}
                         className="p-1.5 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
                         aria-label="Create new channel"
                     >
@@ -74,11 +67,6 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
                         >
                             <span className="text-lg">#</span>
                             <span className="truncate">{channel.name}</span>
-                            {channel.is_private && (
-                                <svg className="w-4 h-4 ml-auto opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                </svg>
-                            )}
                         </button>
                     ))
                 ) : (
@@ -89,20 +77,14 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
                     </div>
                 )}
             </div>
-
-            {/* Create Channel Modal */}
-            <CreateChannelModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-                onChannelCreated={handleChannelCreated}
-            />
         </div>
     );
 }
 
 ChannelList.propTypes = {
     onChannelSelect: PropTypes.func.isRequired,
-    selectedChannelId: PropTypes.string
+    selectedChannelId: PropTypes.string,
+    onCreateChannel: PropTypes.func.isRequired
 };
 
 export default ChannelList;

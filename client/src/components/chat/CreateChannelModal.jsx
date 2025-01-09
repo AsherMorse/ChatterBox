@@ -5,7 +5,6 @@ import { createChannel } from '../../services/api/channelService';
 function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [isPrivate, setIsPrivate] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -18,7 +17,7 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
             const channelData = {
                 name: name.trim(),
                 description: description.trim(),
-                is_private: isPrivate
+                is_private: false
             };
 
             const channel = await createChannel(channelData);
@@ -28,7 +27,6 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
             // Reset form
             setName('');
             setDescription('');
-            setIsPrivate(false);
         } catch (error) {
             setError(error.response?.data?.message || 'Error creating channel');
         } finally {
@@ -39,8 +37,8 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gunmetal/50 dark:bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm z-50">
-            <div className="bg-white dark:bg-dark-bg-secondary rounded-xl shadow-xl w-full max-w-md transform transition-all duration-300 scale-100 animate-scale">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-dark-bg-secondary rounded-xl shadow-xl w-full max-w-md animate-scale">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Create New Channel</h2>
@@ -86,23 +84,6 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
                                     placeholder="What's this channel about?"
                                     rows="3"
                                 />
-                            </div>
-
-                            <div className="flex items-center">
-                                <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                                    <input
-                                        type="checkbox"
-                                        id="isPrivate"
-                                        checked={isPrivate}
-                                        onChange={(e) => setIsPrivate(e.target.checked)}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="h-6 bg-powder-blue dark:bg-dark-border rounded-full w-11 cursor-pointer transition-colors duration-200 peer-checked:bg-emerald"></div>
-                                    <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 transform peer-checked:translate-x-full"></div>
-                                </div>
-                                <label htmlFor="isPrivate" className="text-sm text-gunmetal dark:text-dark-text-primary cursor-pointer select-none">
-                                    Make channel private
-                                </label>
                             </div>
 
                             {error && (

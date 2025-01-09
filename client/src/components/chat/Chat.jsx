@@ -491,6 +491,7 @@ function Chat({ onLogout }) {
                                     setIsSidebarOpen(false);
                                 }}
                                 selectedChannelId={currentChannelId}
+                                onCreateChannel={() => setIsCreateModalOpen(true)}
                             />
                         </div>
 
