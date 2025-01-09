@@ -11,11 +11,8 @@ class RealtimeService {
         this.channels = new Map();
         this.typingChannels = new Map();
         this.channelListChannel = null;
-        this.idleTimeout = null;
-        this.idleTime = 10000; // 10 seconds
         this.userPresenceChannel = null;
         this.presenceSubscribers = new Map(); // Track presence update subscribers
-        this.activityListenersInitialized = false;
         this.isAuthenticated = false;
         this.pendingPresenceUpdate = null;
         this.presenceRetryTimeout = null;
@@ -43,16 +40,10 @@ class RealtimeService {
             if (this.pendingPresenceUpdate) {
                 this.setPresence(this.pendingPresenceUpdate);
                 this.pendingPresenceUpdate = null;
-            } else if (!previousStatus) {
-                // If newly authenticated and no pending update, set as online
-                this.setPresence('online');
             }
-
-            // Start presence monitoring
-            this.startPresenceMonitoring();
         } else {
-            // Clean up when becoming unauthenticated
-            this.stopPresenceMonitoring();
+            // Set offline when becoming unauthenticated
+            this.setPresence('offline');
             this.pendingPresenceUpdate = null;
             if (this.presenceRetryTimeout) {
                 clearTimeout(this.presenceRetryTimeout);
@@ -68,7 +59,7 @@ class RealtimeService {
 
     async setPresence(presence) {
         // Validate presence value
-        const validPresenceStates = ['online', 'idle', 'offline'];
+        const validPresenceStates = ['online', 'offline', 'idle'];
         if (!validPresenceStates.includes(presence)) {
             console.error(`Invalid presence state: ${presence}. Must be one of: ${validPresenceStates.join(', ')}`);
             return;
@@ -132,54 +123,27 @@ class RealtimeService {
         }
     }
 
-    startPresenceMonitoring() {
+    async startPresenceMonitoring() {
         // Only start if authenticated and has valid token
         if (!this.isAuthenticated || !this.validateToken()) {
             console.warn('Deferring presence monitoring until authentication is complete');
-            this.pendingPresenceUpdate = 'online';
             return;
         }
 
-        this.initActivityListeners();
-        this.setPresence('online').catch(error => {
-            console.error('Failed to set initial presence:', error);
-        });
-    }
+        try {
+            // Get current user's status from API
+            const response = await api.get(`/user-status/${supabase.auth.user()?.id}`);
+            const currentUser = response.data;
 
-    initActivityListeners() {
-        if (this.activityListenersInitialized) {
-            return;
+            // Remove automatic online presence setting
+            // The presence will remain whatever it was last set to
+            console.log('Starting presence monitoring with existing presence:', currentUser?.presence);
+        } catch (error) {
+            console.error('Error starting presence monitoring:', error);
         }
-
-        const resetIdleTimer = () => {
-            clearTimeout(this.idleTimeout);
-            // Only update presence if authenticated
-            if (this.isAuthenticated) {
-                this.setPresence('online');
-                this.idleTimeout = setTimeout(() => this.setPresence('idle'), this.idleTime);
-            } else {
-                // Queue the presence update for after authentication
-                this.pendingPresenceUpdate = 'online';
-                this.idleTimeout = setTimeout(() => {
-                    this.pendingPresenceUpdate = 'idle';
-                }, this.idleTime);
-            }
-        };
-
-        window.addEventListener('mousemove', resetIdleTimer);
-        window.addEventListener('click', resetIdleTimer);
-        window.addEventListener('keypress', resetIdleTimer);
-
-        this.activityListenersInitialized = true;
-        resetIdleTimer(); // Initialize the timer
     }
 
     stopPresenceMonitoring() {
-        if (this.idleTimeout) {
-            clearTimeout(this.idleTimeout);
-            this.idleTimeout = null;
-        }
-
         // Only attempt to set offline if authenticated
         if (this.isAuthenticated) {
             this.setPresence('offline');
@@ -821,66 +785,33 @@ class RealtimeService {
                     schema: 'public',
                     table: 'users'
                 }, async (payload) => {
-                    // For DELETE events, mark user as offline
-                    if (payload.eventType === 'DELETE') {
-                        const userData = { 
-                            ...payload.old, 
-                            presence: 'offline',
-                            custom_status_text: null,
-                            custom_status_color: null
-                        };
-                        this.presenceSubscribers.forEach(callback => {
-                            callback(userData);
-                        });
-                        return;
-                    }
-
-                    // For INSERT events, fetch the complete user data
-                    if (payload.eventType === 'INSERT') {
-                        const { data: user, error } = await supabase
-                            .from('users')
-                            .select('id, username, avatar_url, presence, last_seen, custom_status_text, custom_status_color')
-                            .eq('id', payload.new.id)
-                            .single();
-
-                        if (!error && user) {
-                            this.presenceSubscribers.forEach(callback => {
-                                callback(user);
-                            });
-                        }
-                        return;
-                    }
-
-                    // For UPDATE events, handle presence changes carefully
-                    if (payload.eventType === 'UPDATE') {
-                        // If presence or status was explicitly changed in this update
-                        if (payload.new.presence !== payload.old.presence ||
-                            payload.new.custom_status_text !== payload.old.custom_status_text ||
-                            payload.new.custom_status_color !== payload.old.custom_status_color) {
-                            const updatedUser = {
-                                ...payload.new,
-                                presence: payload.new.presence || payload.old.presence,
-                                custom_status_text: payload.new.custom_status_text,
-                                custom_status_color: payload.new.custom_status_color
+                    try {
+                        // For DELETE events, mark user as offline
+                        if (payload.eventType === 'DELETE') {
+                            const userData = { 
+                                ...payload.old, 
+                                presence: 'offline',
+                                custom_status_text: null,
+                                custom_status_color: null
                             };
                             this.presenceSubscribers.forEach(callback => {
-                                callback(updatedUser);
+                                callback(userData);
                             });
                             return;
                         }
 
-                        // If other fields were updated, fetch complete user data
-                        const { data: user, error } = await supabase
-                            .from('users')
-                            .select('id, username, avatar_url, presence, last_seen, custom_status_text, custom_status_color')
-                            .eq('id', payload.new.id)
-                            .single();
-
-                        if (!error && user) {
+                        // For all other events, fetch the complete user data from the API
+                        const userId = payload.new?.id || payload.old?.id;
+                        if (userId) {
+                            const response = await api.get(`/user-status/${userId}`);
+                            const user = response.data;
+                            
                             this.presenceSubscribers.forEach(callback => {
                                 callback(user);
                             });
                         }
+                    } catch (error) {
+                        console.error('Error handling presence update:', error);
                     }
                 })
                 .subscribe((status) => {
@@ -914,22 +845,52 @@ class RealtimeService {
 
     async fetchInitialPresenceStatus() {
         try {
-            const { data: users, error } = await supabase
-                .from('users')
-                .select('id, username, avatar_url, presence, last_seen, custom_status_text, custom_status_color')
-                .not('presence', 'eq', null);
+            // First get all users from the channels and DMs the current user is part of
+            const [channelsResponse, dmsResponse] = await Promise.all([
+                api.get('/channels'),
+                api.get('/direct-messages')
+            ]);
 
-            if (error) {
-                console.error('Error fetching initial presence status:', error);
-                return;
-            }
-
-            // Notify subscribers about each user's current presence
-            users.forEach(user => {
-                this.presenceSubscribers.forEach(callback => {
-                    callback(user);
-                });
+            // Extract unique user IDs from channels and DMs
+            const userIds = new Set();
+            
+            // Add users from channels
+            channelsResponse.data.forEach(channel => {
+                if (channel.members) {
+                    channel.members.forEach(member => {
+                        if (member.user) {
+                            userIds.add(member.user.id);
+                        }
+                    });
+                }
             });
+
+            // Add users from DMs
+            dmsResponse.data.forEach(dm => {
+                if (dm.users) {
+                    dm.users.forEach(user => {
+                        if (user) {
+                            userIds.add(user.id);
+                        }
+                    });
+                }
+            });
+
+            // Convert Set to Array and join with commas
+            const userIdsParam = Array.from(userIds).join(',');
+
+            // Get presence status for all relevant users
+            if (userIdsParam) {
+                const response = await api.get(`/user-status?userIds=${userIdsParam}`);
+                const users = response.data;
+
+                // Notify subscribers about each user's current presence
+                users.forEach(user => {
+                    this.presenceSubscribers.forEach(callback => {
+                        callback(user);
+                    });
+                });
+            }
         } catch (error) {
             console.error('Error in fetchInitialPresenceStatus:', error);
         }

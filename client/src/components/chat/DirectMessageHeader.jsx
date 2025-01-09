@@ -70,7 +70,7 @@ function DirectMessageHeader({ user: initialUser }) {
                         </span>
                     ) : (
                         <span className="text-sm text-rose-quartz dark:text-dark-text-secondary">
-                            {user.presence === 'online' ? 'Online' : user.presence === 'idle' ? 'Away' : 'Offline'}
+                            {user.presence === 'online' ? 'Online' : user.presence === 'idle' ? 'Idle' : 'Offline'}
                         </span>
                     )}
                 </div>

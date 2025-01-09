@@ -30,7 +30,7 @@ function UserStatusEditor({ currentUser, onLogout }) {
 
     useEffect(() => {
         // Set default presence to online if not set
-        if (!currentUser?.presence) {
+        if (currentUser && currentUser.presence === null) {
             handlePresenceChange('online');
         }
         setSelectedColor(currentUser?.custom_status_color || getPresenceColor(currentUser?.presence || 'online'));
@@ -99,7 +99,7 @@ function UserStatusEditor({ currentUser, onLogout }) {
     const getPresenceText = (presence) => {
         switch (presence) {
             case 'online': return 'Online';
-            case 'idle': return 'Away';
+            case 'idle': return 'Idle';
             case 'offline': return 'Offline';
             default: return 'Online';
         }
@@ -151,7 +151,7 @@ function UserStatusEditor({ currentUser, onLogout }) {
                                     className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-alice-blue dark:hover:bg-dark-bg-secondary transition-colors duration-200 text-gunmetal dark:text-dark-text-primary"
                                 >
                                     <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                                    <span>Away</span>
+                                    <span>Idle</span>
                                 </button>
                                 <button
                                     onClick={() => handlePresenceChange('offline')}
