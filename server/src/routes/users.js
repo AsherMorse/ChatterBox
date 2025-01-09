@@ -39,7 +39,6 @@ router.get('/search', authenticateJWT, async (req, res) => {
 
 // Get user by ID
 router.get('/:userId', authenticateJWT, async (req, res) => {
-    console.log('Fetching user:', req.params.userId);
     try {
         const { userId } = req.params;
 
@@ -55,11 +54,9 @@ router.get('/:userId', authenticateJWT, async (req, res) => {
         }
 
         if (!user) {
-            console.log('User not found:', userId);
             return res.status(404).json({ message: 'User not found' });
         }
 
-        console.log('Found user:', user);
         res.json(user);
     } catch (error) {
         console.error('Error in user retrieval:', error);
