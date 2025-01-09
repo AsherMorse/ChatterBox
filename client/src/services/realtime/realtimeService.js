@@ -149,7 +149,13 @@ class RealtimeService {
                             messages (
                                 id,
                                 channel_id,
-                                dm_id
+                                dm_id,
+                                sender_id,
+                                sender:users!messages_sender_id_fkey (
+                                    id,
+                                    username,
+                                    avatar_url
+                                )
                             )
                         `)
                         .eq('id', payload.new.id)
@@ -194,6 +200,8 @@ class RealtimeService {
                         type: 'message_updated',
                         message: {
                             id: fileAttachment.message_id,
+                            sender_id: message.sender_id,
+                            sender: message.sender,
                             file_attachments: [transformedAttachment]
                         }
                     });
@@ -346,7 +354,13 @@ class RealtimeService {
                             messages (
                                 id,
                                 channel_id,
-                                dm_id
+                                dm_id,
+                                sender_id,
+                                sender:users!messages_sender_id_fkey (
+                                    id,
+                                    username,
+                                    avatar_url
+                                )
                             )
                         `)
                         .eq('id', payload.new.id)
@@ -391,6 +405,8 @@ class RealtimeService {
                         type: 'message_updated',
                         message: {
                             id: fileAttachment.message_id,
+                            sender_id: message.sender_id,
+                            sender: message.sender,
                             file_attachments: [transformedAttachment]
                         }
                     });
