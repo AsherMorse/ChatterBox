@@ -119,12 +119,6 @@ class RealtimeService {
                             return;
                         }
 
-                        // For DM messages
-                        if (message.dm_id && message.dm_id !== dmId) {
-                            console.log('File attachment not for this DM');
-                            return;
-                        }
-
                         onMessage({
                             type: 'message_updated',
                             message: {
@@ -178,11 +172,6 @@ class RealtimeService {
                     // Verify this attachment belongs to the current context (channel or DM)
                     if (channelId && message.channel_id !== channelId) {
                         console.log('File attachment not for this channel');
-                        return;
-                    }
-
-                    if (dmId && message.dm_id !== dmId) {
-                        console.log('File attachment not for this DM');
                         return;
                     }
 
