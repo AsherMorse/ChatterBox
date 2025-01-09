@@ -27,13 +27,30 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
         loadConversations();
 
         // Subscribe to DM conversation updates
-        const channel = realtimeService.subscribeToDMConversations(currentUser.id, () => {
+        const conversationChannel = realtimeService.subscribeToDMConversations(currentUser.id, () => {
             loadConversations();
         });
 
+        // Subscribe to presence updates
+        const presenceChannel = realtimeService.subscribeToUserPresence((updatedUser) => {
+            setConversations(prevConversations => 
+                prevConversations.map(conv => ({
+                    ...conv,
+                    users: conv.users.map(user => 
+                        user.id === updatedUser.id 
+                            ? { ...user, presence: updatedUser.presence, custom_status_text: updatedUser.custom_status_text, custom_status_color: updatedUser.custom_status_color }
+                            : user
+                    )
+                }))
+            );
+        });
+
         return () => {
-            if (channel) {
-                channel.unsubscribe();
+            if (conversationChannel) {
+                conversationChannel.unsubscribe();
+            }
+            if (presenceChannel) {
+                presenceChannel.unsubscribe();
             }
         };
     }, [currentUser.id]);
@@ -71,32 +88,62 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
     }
 
     return (
-        <ul className="dm-list">
+        <ul className="space-y-0.5">
             {conversations.map((conversation) => {
                 const user = getOtherUser(conversation);
                 if (!user) return null; // Skip rendering if user is not found
                 return (
                     <li
                         key={conversation.dm_id}
-                        className={`dm-item ${selectedDMId === conversation.dm_id ? 'selected' : ''}`}
+                        className={`
+                            p-2 rounded-lg cursor-pointer transition-colors duration-200
+                            ${selectedDMId === conversation.dm_id 
+                                ? 'bg-emerald/10 text-emerald' 
+                                : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
+                            }
+                        `}
                         onClick={() => onDMSelect(conversation.dm_id)}
                     >
                         <div className="flex items-center gap-2">
-                            <div className="relative">
-                                <span
-                                    className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full
-                                        ${user.presence === 'online' ? 'bg-emerald' : ''}
-                                        ${user.presence === 'idle' ? 'bg-yellow-400' : ''}
-                                        ${user.presence === 'offline' ? 'bg-rose-quartz' : ''}
-                                        border-2 border-white dark:border-dark-bg-secondary`}
-                                />
-                                <img
-                                    src={user.avatar_url || '/default-avatar.png'}
-                                    alt={user.username}
-                                    className="w-8 h-8 rounded-full object-cover"
-                                />
+                            <div className="relative flex-shrink-0">
+                                {user.avatar_url ? (
+                                    <img
+                                        src={user.avatar_url}
+                                        alt={user.username}
+                                        className="w-8 h-8 rounded-xl object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-xl bg-powder-blue dark:bg-dark-border flex items-center justify-center">
+                                        <span className="text-sm font-medium text-gunmetal dark:text-dark-text-primary">
+                                            {user.username?.[0]?.toUpperCase() || '?'}
+                                        </span>
+                                    </div>
+                                )}
+                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-bg-secondary">
+                                    <div className="w-full h-full rounded-full" style={{ 
+                                        backgroundColor: user.presence === 'online' ? '#10B981' 
+                                            : user.presence === 'idle' ? '#F59E0B' 
+                                            : '#94A3B8'
+                                    }} />
+                                </div>
                             </div>
-                            <span>{user.username}</span>
+                            <div className="flex flex-col min-w-0 flex-1">
+                                <span className="text-sm font-medium truncate">
+                                    {user.username}
+                                </span>
+                                {user.custom_status_text ? (
+                                    <span
+                                        className="text-xs truncate"
+                                        style={{ color: user.custom_status_color }}
+                                    >
+                                        {user.custom_status_text}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs truncate text-rose-quartz dark:text-dark-text-secondary">
+                                        {user.presence === 'online' ? 'Online' : user.presence === 'idle' ? 'Away' : 'Offline'}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </li>
                 );

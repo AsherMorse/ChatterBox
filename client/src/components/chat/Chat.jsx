@@ -17,6 +17,7 @@ import MessageReactions from './MessageReactions';
 import FileUpload from './FileUpload';
 import FileAttachment from './FileAttachment';
 import { uploadFile, createFileAttachment } from '../../services/api/fileService';
+import UserStatusEditor from '../sidebar/UserStatusEditor';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -531,7 +532,7 @@ function Chat({ onLogout }) {
                         {/* Direct Messages Section */}
                         <div>
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Direct Messages</h2>
+                                <h2 className="text-xl font-bold text-rose-quartz dark:text-dark-text-secondary">Direct Messages</h2>
                                 <button
                                     onClick={() => setIsCreateDMModalOpen(true)}
                                     className="p-2 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-xl"
@@ -553,34 +554,8 @@ function Chat({ onLogout }) {
                     </div>
 
                     {/* Profile Section */}
-                    <div className="p-4 border-t border-powder-blue dark:border-dark-border flex items-center bg-[#F8FAFD] dark:bg-dark-bg-secondary">
-                        <div className="w-10 h-10 rounded-xl bg-powder-blue dark:bg-dark-border overflow-hidden mr-3">
-                            {currentUser?.avatar_url ? (
-                                <img
-                                    src={currentUser.avatar_url}
-                                    alt={currentUser.username}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-base font-medium text-gunmetal dark:text-dark-text-primary">
-                                    {currentUser?.username?.[0]?.toUpperCase() || '?'}
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="font-bold text-base text-gunmetal dark:text-dark-text-primary truncate">
-                                {currentUser?.username || 'Unknown User'}
-                            </div>
-                        </div>
-                        <button 
-                            onClick={onLogout}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 rounded-xl hover:bg-alice-blue dark:hover:bg-dark-bg-primary"
-                        >
-                            <span>Sign out</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                        </button>
+                    <div className="flex flex-col">
+                        <UserStatusEditor currentUser={currentUser} onLogout={onLogout} />
                     </div>
                 </div>
 

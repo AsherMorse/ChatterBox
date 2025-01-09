@@ -1,5 +1,7 @@
 import { supabase } from '../../config/supabase';
 import EventEmitter from '../../utils/EventEmitter';
+import { getToken } from '../api/auth';
+import api from '../api/api';
 
 // Configure EventEmitter for reactions
 const reactionEvents = new EventEmitter();
@@ -12,38 +14,177 @@ class RealtimeService {
         this.idleTimeout = null;
         this.idleTime = 10000; // 10 seconds
         this.userPresenceChannel = null;
+        this.activityListenersInitialized = false;
+        this.isAuthenticated = false;
+        this.pendingPresenceUpdate = null;
+        this.presenceRetryTimeout = null;
+        this.maxRetries = 3;
+        this.retryCount = 0;
+        this.retryDelay = 1000; // Start with 1 second delay
+    }
+
+    setAuthenticated(status) {
+        const previousStatus = this.isAuthenticated;
+        this.isAuthenticated = status;
+        
+        if (status) {
+            // Clear any existing retry timeout
+            if (this.presenceRetryTimeout) {
+                clearTimeout(this.presenceRetryTimeout);
+                this.presenceRetryTimeout = null;
+            }
+            
+            // Reset retry counters
+            this.retryCount = 0;
+            this.retryDelay = 1000;
+
+            // Handle pending presence update if exists
+            if (this.pendingPresenceUpdate) {
+                this.setPresence(this.pendingPresenceUpdate);
+                this.pendingPresenceUpdate = null;
+            } else if (!previousStatus) {
+                // If newly authenticated and no pending update, set as online
+                this.setPresence('online');
+            }
+
+            // Start presence monitoring
+            this.startPresenceMonitoring();
+        } else {
+            // Clean up when becoming unauthenticated
+            this.stopPresenceMonitoring();
+            this.pendingPresenceUpdate = null;
+            if (this.presenceRetryTimeout) {
+                clearTimeout(this.presenceRetryTimeout);
+                this.presenceRetryTimeout = null;
+            }
+        }
+    }
+
+    validateToken() {
+        const token = getToken();
+        return token && typeof token === 'string' && token.trim() !== '';
+    }
+
+    async setPresence(presence) {
+        // Validate presence value
+        const validPresenceStates = ['online', 'idle', 'offline'];
+        if (!validPresenceStates.includes(presence)) {
+            console.error(`Invalid presence state: ${presence}. Must be one of: ${validPresenceStates.join(', ')}`);
+            return;
+        }
+
+        // If not authenticated, queue the presence update
+        if (!this.isAuthenticated) {
+            console.log('Queueing presence update for after authentication:', presence);
+            this.pendingPresenceUpdate = presence;
+            return;
+        }
+
+        // Validate token
+        if (!this.validateToken()) {
+            console.warn('Cannot update presence: Invalid or missing authentication token');
+            this.pendingPresenceUpdate = presence;
+            return;
+        }
+
+        try {
+            const response = await api.patch('/user-status/presence', { presence });
+            
+            // Reset retry counters on success
+            this.retryCount = 0;
+            this.retryDelay = 1000;
+            this.pendingPresenceUpdate = null;
+
+            return true;
+        } catch (error) {
+            console.error('Error updating presence:', {
+                message: error.message,
+                presence,
+                timestamp: new Date().toISOString()
+            });
+
+            // Implement exponential backoff retry logic
+            if (this.retryCount < this.maxRetries) {
+                this.retryCount++;
+                this.retryDelay *= 2; // Exponential backoff
+                
+                console.log(`Retrying presence update in ${this.retryDelay}ms (attempt ${this.retryCount}/${this.maxRetries})`);
+                
+                // Clear any existing retry timeout
+                if (this.presenceRetryTimeout) {
+                    clearTimeout(this.presenceRetryTimeout);
+                }
+                
+                // Set up retry
+                this.pendingPresenceUpdate = presence;
+                this.presenceRetryTimeout = setTimeout(() => {
+                    if (this.isAuthenticated && this.pendingPresenceUpdate) {
+                        this.setPresence(this.pendingPresenceUpdate);
+                    }
+                }, this.retryDelay);
+            } else {
+                console.error('Max retry attempts reached for presence update');
+                this.pendingPresenceUpdate = presence; // Keep the last attempted presence state
+            }
+
+            throw error;
+        }
+    }
+
+    startPresenceMonitoring() {
+        // Only start if authenticated and has valid token
+        if (!this.isAuthenticated || !this.validateToken()) {
+            console.warn('Deferring presence monitoring until authentication is complete');
+            this.pendingPresenceUpdate = 'online';
+            return;
+        }
+
         this.initActivityListeners();
+        this.setPresence('online').catch(error => {
+            console.error('Failed to set initial presence:', error);
+        });
     }
 
     initActivityListeners() {
+        if (this.activityListenersInitialized) {
+            return;
+        }
+
         const resetIdleTimer = () => {
             clearTimeout(this.idleTimeout);
-            this.setPresence('online');
-            this.idleTimeout = setTimeout(() => this.setPresence('idle'), this.idleTime);
+            // Only update presence if authenticated
+            if (this.isAuthenticated) {
+                this.setPresence('online');
+                this.idleTimeout = setTimeout(() => this.setPresence('idle'), this.idleTime);
+            } else {
+                // Queue the presence update for after authentication
+                this.pendingPresenceUpdate = 'online';
+                this.idleTimeout = setTimeout(() => {
+                    this.pendingPresenceUpdate = 'idle';
+                }, this.idleTime);
+            }
         };
 
         window.addEventListener('mousemove', resetIdleTimer);
         window.addEventListener('click', resetIdleTimer);
         window.addEventListener('keypress', resetIdleTimer);
 
+        this.activityListenersInitialized = true;
         resetIdleTimer(); // Initialize the timer
     }
 
-    async setPresence(presence) {
-        try {
-            const response = await fetch('/api/user-status/presence', {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ presence }),
-            });
-            if (!response.ok) {
-                throw new Error('Failed to update presence');
-            }
-        } catch (error) {
-            console.error('Error setting presence:', error);
+    stopPresenceMonitoring() {
+        if (this.idleTimeout) {
+            clearTimeout(this.idleTimeout);
+            this.idleTimeout = null;
         }
+
+        // Only attempt to set offline if authenticated
+        if (this.isAuthenticated) {
+            this.setPresence('offline');
+        }
+        
+        this.pendingPresenceUpdate = null;
     }
 
     subscribeToChannel(channelId, onMessage) {

@@ -5,6 +5,7 @@ import Chat from './components/chat/Chat';
 import BrowseChannels from './pages/BrowseChannels';
 import { getUser } from './services/api/auth';
 import { initializeTheme } from './utils/theme';
+import realtimeService from './services/realtime/realtimeService';
 
 function App() {
     const [user, setUser] = useState(getUser());
@@ -12,16 +13,29 @@ function App() {
     useEffect(() => {
         // Initialize theme when app loads
         initializeTheme();
+
+        // Set initial authentication state
+        realtimeService.setAuthenticated(!!user);
+
+        // Clean up on unmount
+        return () => {
+            realtimeService.setAuthenticated(false);
+        };
     }, []);
 
     const handleLogin = (userData) => {
         setUser(userData);
+        realtimeService.setAuthenticated(true);
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
+        // Set offline presence before logging out
+        realtimeService.setPresence('offline').finally(() => {
+            realtimeService.setAuthenticated(false);
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            setUser(null);
+        });
     };
 
     if (!user) {
