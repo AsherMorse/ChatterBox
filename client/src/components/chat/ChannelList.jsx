@@ -37,28 +37,26 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
                 <h3 className="text-sm font-semibold text-rose-quartz dark:text-dark-text-secondary uppercase tracking-wider">
                     Your Channels
                 </h3>
-                {channels.length > 0 && (
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => navigate('/browse-channels')}
-                            className="p-1.5 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
-                            aria-label="Browse channels"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </button>
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="p-1.5 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
-                            aria-label="Create new channel"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                        </button>
-                    </div>
-                )}
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => navigate('/browse-channels')}
+                        className="p-1.5 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
+                        aria-label="Browse channels"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="p-1.5 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"
+                        aria-label="Create new channel"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             {/* Channel List */}
@@ -70,7 +68,7 @@ function ChannelList({ onChannelSelect, selectedChannelId }) {
                             onClick={() => onChannelSelect(channel.id)}
                             className={`w-full text-left px-3 py-2 rounded-lg transition-colors duration-200 group flex items-center space-x-2
                                 ${selectedChannelId === channel.id 
-                                    ? 'bg-emerald/10 text-emerald' 
+                                    ? 'bg-emerald/10 text-emerald'
                                     : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
                                 }`}
                         >

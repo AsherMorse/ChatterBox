@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { getDMConversations } from '../../services/api/dmService';
 import { getUser } from '../../services/api/auth';
+import realtimeService from '../../services/realtime/realtimeService';
 
 function DirectMessageList({ onDMSelect, selectedDMId }) {
     const [conversations, setConversations] = useState([]);
@@ -9,22 +10,33 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
     const [error, setError] = useState(null);
     const currentUser = getUser();
 
+    const loadConversations = async () => {
+        try {
+            setIsLoading(true);
+            const data = await getDMConversations();
+            setConversations(data);
+        } catch (err) {
+            console.error('Error loading DM conversations:', err);
+            setError('Failed to load conversations');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadConversations = async () => {
-            try {
-                setIsLoading(true);
-                const data = await getDMConversations();
-                setConversations(data);
-            } catch (err) {
-                console.error('Error loading DM conversations:', err);
-                setError('Failed to load conversations');
-            } finally {
-                setIsLoading(false);
+        loadConversations();
+
+        // Subscribe to DM conversation updates
+        const channel = realtimeService.subscribeToDMConversations(currentUser.id, () => {
+            loadConversations();
+        });
+
+        return () => {
+            if (channel) {
+                channel.unsubscribe();
             }
         };
-
-        loadConversations();
-    }, []);
+    }, [currentUser.id]);
 
     // Get the other user in a DM conversation
     const getOtherUser = (conversation) => {
@@ -56,42 +68,50 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
 
     return (
         <div className="space-y-0.5">
-            {conversations.map((conversation) => {
-                const otherUser = getOtherUser(conversation);
-                return (
-                    <button
-                        key={conversation.dm_id}
-                        onClick={() => onDMSelect(conversation.dm_id)}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors duration-200 ${
-                            selectedDMId === conversation.dm_id
-                                ? 'bg-emerald/10 text-emerald'
-                                : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
-                        }`}
-                    >
-                        <div className="relative">
-                            <div className="w-8 h-8 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
-                                {otherUser?.avatar_url ? (
-                                    <img
-                                        src={otherUser.avatar_url}
-                                        alt={otherUser.username}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
-                                        {otherUser?.username?.[0]?.toUpperCase() || '?'}
-                                    </div>
-                                )}
+            {conversations.length > 0 ? (
+                conversations.map((conversation) => {
+                    const otherUser = getOtherUser(conversation);
+                    return (
+                        <button
+                            key={conversation.dm_id}
+                            onClick={() => onDMSelect(conversation.dm_id)}
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors duration-200 ${
+                                selectedDMId === conversation.dm_id
+                                    ? 'bg-emerald/10 text-emerald'
+                                    : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
+                            }`}
+                        >
+                            <div className="relative">
+                                <div className="w-8 h-8 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
+                                    {otherUser?.avatar_url ? (
+                                        <img
+                                            src={otherUser.avatar_url}
+                                            alt={otherUser.username}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                                            {otherUser?.username?.[0]?.toUpperCase() || '?'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-bg-secondary ${
+                                    otherUser?.status === 'online' ? 'bg-emerald' : 'bg-rose-quartz'
+                                }`}></div>
                             </div>
-                            <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-bg-secondary ${
-                                otherUser?.status === 'online' ? 'bg-emerald' : 'bg-rose-quartz'
-                            }`}></div>
-                        </div>
-                        <span className="flex-1 text-left truncate">
-                            {otherUser?.username || 'Unknown User'}
-                        </span>
-                    </button>
-                );
-            })}
+                            <span className="flex-1 text-left truncate">
+                                {otherUser?.username || 'Unknown User'}
+                            </span>
+                        </button>
+                    );
+                })
+            ) : (
+                <div className="text-center py-8">
+                    <p className="text-rose-quartz dark:text-dark-text-secondary">
+                        You haven't started any conversations yet
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

@@ -35,12 +35,12 @@ function CreateDMModal({ isOpen, onClose, onDMCreated }) {
         searchTimeoutRef.current = setTimeout(async () => {
             try {
                 setIsLoading(true);
+                setError(null);
                 const results = await searchUsers(searchQuery);
                 setSearchResults(results);
-                setError(null);
             } catch (err) {
                 console.error('Error searching users:', err);
-                setError('Failed to search users');
+                setError('Failed to search users. Please try again.');
                 setSearchResults([]);
             } finally {
                 setIsLoading(false);
@@ -54,17 +54,20 @@ function CreateDMModal({ isOpen, onClose, onDMCreated }) {
         };
     }, [searchQuery]);
 
-    const handleStartDM = async () => {
-        if (!selectedUser) return;
+    const handleCreateDM = async () => {
+        if (!selectedUser) {
+            setError('Please select a user to message');
+            return;
+        }
 
         try {
             setIsLoading(true);
+            setError(null);
             const dmId = await createDMConversation(selectedUser.id);
             onDMCreated(dmId);
-            onClose();
         } catch (err) {
             console.error('Error creating DM:', err);
-            setError('Failed to start conversation');
+            setError('Failed to create conversation. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -73,16 +76,26 @@ function CreateDMModal({ isOpen, onClose, onDMCreated }) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gunmetal/50 dark:bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-lg w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-dark-bg-secondary rounded-xl shadow-xl w-full max-w-md animate-scale">
                 <div className="p-6">
-                    <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary mb-4">
-                        New Message
-                    </h2>
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">
+                            New Message
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
 
                     <div className="space-y-4">
                         <div>
-                            <label htmlFor="user-search" className="sr-only">
+                            <label htmlFor="user-search" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
                                 Search users
                             </label>
                             <input
@@ -96,7 +109,7 @@ function CreateDMModal({ isOpen, onClose, onDMCreated }) {
                         </div>
 
                         {error && (
-                            <div className="text-rose-quartz dark:text-dark-text-secondary text-sm">
+                            <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3">
                                 {error}
                             </div>
                         )}
@@ -149,22 +162,24 @@ function CreateDMModal({ isOpen, onClose, onDMCreated }) {
                             )}
                         </div>
                     </div>
-                </div>
 
-                <div className="border-t border-powder-blue dark:border-dark-border p-4 flex justify-end gap-2">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald transition-colors duration-200"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleStartDM}
-                        disabled={!selectedUser || isLoading}
-                        className="px-4 py-2 bg-emerald text-white rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald disabled:opacity-50 transition-all duration-200"
-                    >
-                        Start Conversation
-                    </button>
+                    <div className="mt-6 flex justify-end space-x-3">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleCreateDM}
+                            disabled={!selectedUser || isLoading}
+                            className={`px-4 py-2 bg-emerald text-white rounded-lg transition-all duration-200 ${
+                                !selectedUser || isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'
+                            }`}
+                        >
+                            {isLoading ? 'Creating...' : 'Start Conversation'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

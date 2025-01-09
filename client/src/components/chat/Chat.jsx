@@ -5,6 +5,7 @@ import ChannelList from './ChannelList';
 import DirectMessageList from './DirectMessageList';
 import CreateChannelModal from './CreateChannelModal';
 import CreateDMModal from './CreateDMModal';
+import DirectMessageHeader from './DirectMessageHeader';
 import { getMessages, sendMessage, getMessageSender } from '../../services/api/messageService';
 import { getDMMessages, sendDMMessage } from '../../services/api/dmService';
 import realtimeService from '../../services/realtime/realtimeService';
@@ -230,7 +231,9 @@ function Chat({ onLogout }) {
     };
 
     const handleCreateDM = (dmId) => {
-        handleDMSelect(dmId);
+        // The dmId from createDMConversation comes as an object with dm_id property
+        const actualDmId = typeof dmId === 'object' ? dmId.dm_id : dmId;
+        handleDMSelect(actualDmId);
         setIsCreateDMModalOpen(false);
     };
 
@@ -244,16 +247,7 @@ function Chat({ onLogout }) {
                         {/* Channels Section */}
                         <div className="mb-8">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Channels</h2>
-                                <button
-                                    onClick={() => setIsCreateModalOpen(true)}
-                                    className="p-1 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200"
-                                    title="Create Channel"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                    </svg>
-                                </button>
+                                <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Workspaces</h2>
                             </div>
                             <ChannelList
                                 onChannelSelect={handleChannelSelect}
@@ -455,6 +449,10 @@ function Chat({ onLogout }) {
             <CreateChannelModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
+                onChannelCreated={(channel) => {
+                    handleChannelSelect(channel.id);
+                    setIsCreateModalOpen(false);
+                }}
             />
             <CreateDMModal
                 isOpen={isCreateDMModalOpen}

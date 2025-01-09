@@ -300,6 +300,43 @@ class RealtimeService {
         console.log('Stopping typing indicator');
         channel.untrack();
     }
+
+    subscribeToDMConversations(userId, onUpdate) {
+        console.log('Subscribing to DM conversations for user:', userId);
+        
+        // Create a new subscription
+        const channel = supabase
+            .channel(`dm-conversations:${userId}`)
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'direct_messages',
+                    or: [
+                        `user1_id.eq.${userId}`,
+                        `user2_id.eq.${userId}`
+                    ]
+                },
+                (payload) => {
+                    console.log('DM conversation change:', payload);
+                    onUpdate();
+                }
+            );
+
+        // Subscribe and handle status
+        channel.subscribe(async (status) => {
+            console.log(`Realtime subscription status for DM conversations:`, status);
+            if (status === 'SUBSCRIBED') {
+                console.log('Successfully subscribed to DM conversations');
+            } else if (status === 'CLOSED') {
+                console.log('DM conversations subscription closed');
+            } else if (status === 'CHANNEL_ERROR') {
+                console.error('DM conversations subscription error');
+            }
+        });
+
+        return channel;
+    }
 }
 
 const realtimeService = new RealtimeService();

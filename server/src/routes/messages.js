@@ -11,7 +11,7 @@ const supabase = createClient(
 // Create a new message
 router.post('/', authenticateJWT, async (req, res) => {
     try {
-        const { content, channel_id } = req.body;
+        const { content, channel_id, dm_id } = req.body;
         const sender_id = req.user.id;
 
         // First get the sender information
@@ -31,6 +31,7 @@ router.post('/', authenticateJWT, async (req, res) => {
             content,
             sender_id,
             channel_id,
+            dm_id,
             sender: sender // Include sender info directly
         };
 
@@ -39,7 +40,8 @@ router.post('/', authenticateJWT, async (req, res) => {
             .insert({
                 content,
                 sender_id,
-                channel_id
+                channel_id,
+                dm_id
             })
             .select(`
                 *,
@@ -89,6 +91,34 @@ router.get('/channel/:channelId', authenticateJWT, async (req, res) => {
         res.json(messages);
     } catch (error) {
         console.error('Error in message retrieval:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Get messages for a DM conversation
+router.get('/dm/:dmId', authenticateJWT, async (req, res) => {
+    try {
+        const { dmId } = req.params;
+        const { limit = 50 } = req.query;
+
+        const { data: messages, error } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                sender:sender_id(id, username, avatar_url)
+            `)
+            .eq('dm_id', dmId)
+            .order('created_at', { ascending: true })
+            .limit(limit);
+
+        if (error) {
+            console.error('Error fetching DM messages:', error);
+            return res.status(500).json({ message: 'Error fetching DM messages' });
+        }
+
+        res.json(messages);
+    } catch (error) {
+        console.error('Error in DM message retrieval:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });

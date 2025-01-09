@@ -8,6 +8,35 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_KEY
 );
 
+// Search users
+router.get('/search', authenticateJWT, async (req, res) => {
+    try {
+        const { query } = req.query;
+        const currentUserId = req.user.id;
+
+        if (!query) {
+            return res.json([]);
+        }
+
+        const { data: users, error } = await supabase
+            .from('users')
+            .select('id, username, avatar_url')
+            .or(`username.ilike.%${query}%`)
+            .neq('id', currentUserId)
+            .limit(10);
+
+        if (error) {
+            console.error('Error searching users:', error);
+            return res.status(500).json({ message: 'Error searching users' });
+        }
+
+        res.json(users);
+    } catch (error) {
+        console.error('Error in user search:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 // Get user by ID
 router.get('/:userId', authenticateJWT, async (req, res) => {
     console.log('Fetching user:', req.params.userId);
