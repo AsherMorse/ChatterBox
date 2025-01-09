@@ -37,6 +37,7 @@ function Chat({ onLogout }) {
     const currentChannelId = searchParams.get('channel');
     const currentDMId = searchParams.get('dm');
     const navigate = useNavigate();
+    const [isTypingVisible, setIsTypingVisible] = useState('hidden');
 
     // Keep currentMessagesRef in sync with messages
     useEffect(() => {
@@ -66,6 +67,12 @@ function Chat({ onLogout }) {
         // Subscribe to typing indicators
         let typingChannel;
         if (currentChannelId) {
+            // Ensure we unsubscribe from any existing typing channel first
+            if (typingChannelRef.current) {
+                realtimeService.stopTyping(typingChannelRef.current);
+                realtimeService.unsubscribeFromTyping(currentChannelId);
+            }
+            
             typingChannel = realtimeService.subscribeToTyping(currentChannelId, (typingUsers) => {
                 console.log('Typing users update:', typingUsers);
                 setTypingUsers(
@@ -76,6 +83,12 @@ function Chat({ onLogout }) {
             });
             typingChannelRef.current = typingChannel;
         } else if (currentDMId) {
+            // Ensure we unsubscribe from any existing typing channel first
+            if (typingChannelRef.current) {
+                realtimeService.stopTyping(typingChannelRef.current);
+                realtimeService.unsubscribeFromTyping(`dm:${currentDMId}`);
+            }
+            
             typingChannel = realtimeService.subscribeToTyping(`dm:${currentDMId}`, (typingUsers) => {
                 console.log('Typing users update (DM):', typingUsers);
                 setTypingUsers(
@@ -116,15 +129,12 @@ function Chat({ onLogout }) {
             }
             if (typingChannelRef.current) {
                 realtimeService.stopTyping(typingChannelRef.current);
-                typingChannelRef.current = null;
-            }
-            // Cleanup typing channel subscription
-            if (typingChannel) {
                 if (currentChannelId) {
                     realtimeService.unsubscribeFromTyping(currentChannelId);
                 } else if (currentDMId) {
                     realtimeService.unsubscribeFromTyping(`dm:${currentDMId}`);
                 }
+                typingChannelRef.current = null;
             }
         };
     }, [currentChannelId, currentDMId, currentUser.id]);
@@ -239,6 +249,14 @@ function Chat({ onLogout }) {
         e.preventDefault();
         if (!newMessage.trim() && stagedFiles.length === 0) return;
 
+        // Clear typing indicator immediately before sending
+        if (typingChannelRef.current) {
+            realtimeService.stopTyping(typingChannelRef.current);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+        }
+
         try {
             // Send message first
             let sentMessage;
@@ -282,29 +300,20 @@ function Chat({ onLogout }) {
             }
 
             setNewMessage('');
-
-            // Clear typing indicator after a 200ms delay
-            setTimeout(() => {
-                if (typingChannelRef.current) {
-                    realtimeService.stopTyping(typingChannelRef.current);
-                    if (typingTimeoutRef.current) {
-                        clearTimeout(typingTimeoutRef.current);
-                    }
-                }
-            }, 200);
         } catch (error) {
             console.error('Error sending message:', error);
         }
     };
 
     const handleTyping = () => {
-        if (!typingChannelRef.current) {
-            console.log('No typing channel, skipping typing indicator');
+        if (!currentChannelId && !currentDMId) {
             return;
         }
 
-        console.log('Starting typing indicator for user:', currentUser.username);
-        realtimeService.startTyping(typingChannelRef.current, currentUser);
+        // Start typing immediately if we have a channel
+        if (typingChannelRef.current) {
+            realtimeService.startTyping(typingChannelRef.current, currentUser);
+        }
 
         // Clear existing timeout
         if (typingTimeoutRef.current) {
@@ -313,11 +322,10 @@ function Chat({ onLogout }) {
 
         // Set new timeout
         typingTimeoutRef.current = setTimeout(() => {
-            console.log('Stopping typing indicator for user:', currentUser.username);
             if (typingChannelRef.current) {
                 realtimeService.stopTyping(typingChannelRef.current);
             }
-        }, 3000);
+        }, 1000);
     };
 
     const handleChannelSelect = (channelId) => {
@@ -376,12 +384,55 @@ function Chat({ onLogout }) {
         }
     }, [currentChannelId, currentDMId]);
 
+    // Update the useEffect for typing users
+    useEffect(() => {
+        if (typingUsers.length > 0) {
+            setIsTypingVisible('entering');
+        } else {
+            setIsTypingVisible('exiting');
+            const timeout = setTimeout(() => {
+                setIsTypingVisible('hidden');
+            }, 300); // Match animation duration
+            return () => clearTimeout(timeout);
+        }
+    }, [typingUsers]);
+
+    // Update the renderTypingIndicator function
+    const renderTypingIndicator = () => {
+        // Don't show indicator if hidden or if only the current user is typing
+        if (isTypingVisible === 'hidden' || typingUsers.length === 0) return null;
+
+        // Filter out current user from typing users
+        const otherTypingUsers = typingUsers.filter(username => username !== currentUser.username);
+        if (otherTypingUsers.length === 0) return null;
+
+        return (
+            <div className="absolute -top-2 left-6 z-0">
+                <div className={`
+                    inline-flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                    border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                    ${isTypingVisible === 'entering' ? 'animate-slide-up' : ''}
+                    ${isTypingVisible === 'exiting' ? 'animate-slide-down' : ''}
+                `}>
+                    <div className="flex space-x-1">
+                        <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                        <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                        <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
+                    </div>
+                    <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
+                        {otherTypingUsers.length} is typing
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
             <Header onLogout={onLogout} />
-            <div className="flex h-[calc(100vh-64px)]">
+            <div className="flex h-[calc(100vh-64px)] p-4 gap-4">
                 {/* Sidebar */}
-                <div className="w-72 bg-white dark:bg-dark-bg-secondary border-r border-powder-blue dark:border-dark-border transition-colors duration-200 flex flex-col">
+                <div className="w-72 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border transition-colors duration-200 flex flex-col rounded-2xl overflow-hidden">
                     <div className="p-6 flex-1 overflow-y-auto">
                         {/* Channels Section */}
                         <div className="mb-8">
@@ -400,7 +451,7 @@ function Chat({ onLogout }) {
                                 <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Direct Messages</h2>
                                 <button
                                     onClick={() => setIsCreateDMModalOpen(true)}
-                                    className="p-1 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200"
+                                    className="p-2 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-xl"
                                     title="New Message"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -416,8 +467,8 @@ function Chat({ onLogout }) {
                     </div>
 
                     {/* Profile Section */}
-                    <div className="p-4 border-t border-powder-blue dark:border-dark-border flex items-center">
-                        <div className="w-10 h-10 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mr-3">
+                    <div className="p-4 border-t border-powder-blue dark:border-dark-border flex items-center bg-[#F8FAFD] dark:bg-dark-bg-secondary">
+                        <div className="w-10 h-10 rounded-xl bg-powder-blue dark:bg-dark-border overflow-hidden mr-3">
                             {currentUser?.avatar_url ? (
                                 <img
                                     src={currentUser.avatar_url}
@@ -437,7 +488,7 @@ function Chat({ onLogout }) {
                         </div>
                         <button 
                             onClick={onLogout}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 rounded-lg hover:bg-alice-blue dark:hover:bg-dark-bg-primary"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 rounded-xl hover:bg-alice-blue dark:hover:bg-dark-bg-primary"
                         >
                             <span>Sign out</span>
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -448,10 +499,10 @@ function Chat({ onLogout }) {
                 </div>
 
                 {/* Main Chat Area */}
-                <div className="flex-1 flex flex-col bg-white dark:bg-dark-bg-secondary">
+                <div className="flex-1 flex flex-col bg-white dark:bg-dark-bg-primary rounded-2xl overflow-hidden border border-powder-blue dark:border-dark-border">
                     {/* Chat Header */}
                     {currentChannelId && (
-                        <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center">
+                        <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center bg-[#F8FAFD] dark:bg-dark-bg-secondary">
                             <div className="flex items-center gap-2">
                                 <span className="text-2xl text-gunmetal dark:text-dark-text-primary">#</span>
                                 <h2 className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
@@ -469,158 +520,153 @@ function Chat({ onLogout }) {
                     {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto px-6 py-4">
                         {/* Messages */}
-                        <div className="space-y-0.5">
+                        <div className="space-y-0">
                             {messages.map((message, index) => {
                                 const isFirstInGroup = index === 0 || messages[index - 1].sender?.id !== message.sender?.id;
                                 const isLastInGroup = index === messages.length - 1 || messages[index + 1].sender?.id !== message.sender?.id;
 
                                 return (
-                                    <React.Fragment key={message.id}>
-                                        <div
-                                            className={`
-                                                group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg 
-                                                ${!isFirstInGroup ? '-mt-2' : ''}
-                                                py-px px-2.5 transition-colors duration-200
-                                            `}
-                                            onMouseEnter={() => {
-                                                const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
-                                                if (reactionComponent) {
-                                                    reactionComponent.dispatchEvent(new Event('mouseenter'));
-                                                }
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                const toElement = e.relatedTarget;
-                                                const isMovingToAnotherMessage = toElement?.closest('.group');
-                                                
-                                                if (!isMovingToAnotherMessage) {
-                                                    const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
-                                                    if (reactionComponent) {
-                                                        reactionComponent.dispatchEvent(new Event('mouseleave'));
-                                                    }
-                                                }
-                                            }}
-                                        >
-                                            <div className="w-9 flex-shrink-0">
-                                                {isFirstInGroup && (
-                                                    <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
-                                                        {message.sender?.avatar_url ? (
-                                                            <img
-                                                                src={message.sender.avatar_url}
-                                                                alt={message.sender.username}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
-                                                                {message.sender?.username?.[0]?.toUpperCase() || '?'}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0 ml-2.5">
-                                                {isFirstInGroup && (
-                                                    <div className="flex items-baseline gap-1.5">
-                                                        <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
-                                                            {message.sender?.username || 'Unknown User'}
-                                                        </span>
-                                                        <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
-                                                            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2 group -mt-0.5">
-                                                        <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
-                                                            {message.content}
-                                                        </div>
-                                                        {/* Only show reactions for text messages */}
-                                                        {(!message.file_attachments || message.file_attachments.length === 0) && (
-                                                            <div className="flex-shrink-0">
-                                                                <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
-                                                                    <MessageReactions 
-                                                                        messageId={message.id}
-                                                                        currentUserId={currentUser.id}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    {/* Render file attachments */}
-                                                    {message.file_attachments && message.file_attachments.length > 0 && (
-                                                        <div className="mt-0.5 flex flex-col items-center w-full">
-                                                            {message.file_attachments.map((attachment, index) => (
-                                                                <div key={index} className="flex justify-center w-full">
-                                                                    <FileAttachment 
-                                                                        attachment={{
-                                                                            fileName: attachment.file_name,
-                                                                            fileType: attachment.file_type,
-                                                                            fileSize: attachment.file_size,
-                                                                            fileUrl: attachment.file_url,
-                                                                            thumbnailUrl: attachment.thumbnail_url
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            ))}
+                                    <div
+                                        key={message.id}
+                                        className={`
+                                            group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-secondary rounded-xl 
+                                            ${!isFirstInGroup ? '-mt-1' : 'mt-1'}
+                                            py-0.5 px-3 transition-all duration-200
+                                        `}
+                                    >
+                                        <div className="w-9 flex-shrink-0">
+                                            {isFirstInGroup && (
+                                                <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
+                                                    {message.sender?.avatar_url ? (
+                                                        <img
+                                                            src={message.sender.avatar_url}
+                                                            alt={message.sender.username}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                                                            {message.sender?.username?.[0]?.toUpperCase() || '?'}
                                                         </div>
                                                     )}
                                                 </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0 ml-2.5">
+                                            {isFirstInGroup && (
+                                                <div className="flex items-baseline gap-1.5">
+                                                    <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
+                                                        {message.sender?.username || 'Unknown User'}
+                                                    </span>
+                                                    <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
+                                                        {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2 group -mt-0.5">
+                                                    <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
+                                                        {message.content}
+                                                    </div>
+                                                    {/* Only show reactions for text messages */}
+                                                    {(!message.file_attachments || message.file_attachments.length === 0) && (
+                                                        <div className="flex-shrink-0">
+                                                            <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
+                                                                <MessageReactions 
+                                                                    messageId={message.id}
+                                                                    currentUserId={currentUser.id}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {/* Render file attachments */}
+                                                {message.file_attachments && message.file_attachments.length > 0 && (
+                                                    <div className="mt-0.5 flex flex-col items-center w-full">
+                                                        {message.file_attachments.map((attachment, index) => (
+                                                            <div key={index} className="flex justify-center w-full">
+                                                                <FileAttachment 
+                                                                    attachment={{
+                                                                        fileName: attachment.file_name,
+                                                                        fileType: attachment.file_type,
+                                                                        fileSize: attachment.file_size,
+                                                                        fileUrl: attachment.file_url,
+                                                                        thumbnailUrl: attachment.thumbnail_url
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                    </React.Fragment>
+                                    </div>
                                 );
                             })}
                             <div ref={messagesEndRef} />
                         </div>
                     </div>
 
-                    {/* Message Input */}
-                    <div className="px-6 py-4 border-t border-powder-blue dark:border-dark-border">
-                        {/* Show staged files */}
-                        {stagedFiles.length > 0 && (
-                            <div className="flex flex-col items-center gap-2 mb-2">
-                                {stagedFiles.map((file, index) => (
-                                    <div 
-                                        key={index} 
-                                        className="flex items-center gap-1 bg-gray-100 dark:bg-dark-bg-secondary rounded px-2 py-1"
-                                    >
-                                        <span className="text-sm text-gray-600 dark:text-dark-text-secondary truncate max-w-[150px]">
-                                            {file.fileName}
-                                        </span>
-                                        <button
-                                            onClick={() => handleRemoveStagedFile(index)}
-                                            className="text-gray-500 hover:text-red-500 dark:text-dark-text-secondary"
+                    {/* Message Input Container */}
+                    <div className="relative">
+                        {/* Typing Indicator */}
+                        <div className="absolute -top-8 left-6 z-0">
+                            {renderTypingIndicator()}
+                        </div>
+
+                        {/* Message Input */}
+                        <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10">
+                            {/* Show staged files */}
+                            {stagedFiles.length > 0 && (
+                                <div className="flex flex-col items-center gap-2 mb-3">
+                                    {stagedFiles.map((file, index) => (
+                                        <div 
+                                            key={index} 
+                                            className="flex items-center gap-2 bg-alice-blue dark:bg-dark-bg-primary rounded-xl px-3 py-1.5"
                                         >
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        
-                        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                            <FileUpload 
-                                onFileSelect={handleFileSelect} 
-                                disabled={isUploading || (!currentChannelId && !currentDMId)} 
-                            />
-                            <input
-                                type="text"
-                                value={newMessage}
-                                onChange={(e) => {
-                                    setNewMessage(e.target.value);
-                                    handleTyping();
-                                }}
-                                placeholder="Type a message..."
-                                className="flex-1 p-2 rounded border border-gray-300 dark:border-dark-border dark:bg-dark-bg-secondary dark:text-dark-text-primary"
-                                disabled={!currentChannelId && !currentDMId}
-                            />
-                            <button
-                                type="submit"
-                                disabled={(!newMessage.trim() && stagedFiles.length === 0) || (!currentChannelId && !currentDMId)}
-                                className="px-4 py-2 bg-emerald text-white rounded hover:bg-emerald-dark disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Send
-                            </button>
-                        </form>
+                                            <span className="text-sm text-gray-600 dark:text-dark-text-secondary truncate max-w-[150px]">
+                                                {file.fileName}
+                                            </span>
+                                            <button
+                                                onClick={() => handleRemoveStagedFile(index)}
+                                                className="text-gray-500 hover:text-red-500 dark:text-dark-text-secondary rounded-lg p-1 hover:bg-white/50 dark:hover:bg-dark-bg-secondary/50 transition-colors duration-200"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+                                <FileUpload 
+                                    onFileSelect={handleFileSelect} 
+                                    disabled={isUploading || (!currentChannelId && !currentDMId)} 
+                                />
+                                <input
+                                    type="text"
+                                    value={newMessage}
+                                    onChange={(e) => {
+                                        setNewMessage(e.target.value);
+                                        handleTyping();
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key !== 'Enter') {
+                                            handleTyping();
+                                        }
+                                    }}
+                                    placeholder="Type a message..."
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-powder-blue dark:border-dark-border bg-white dark:bg-dark-bg-secondary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-emerald transition-all duration-200"
+                                    disabled={!currentChannelId && !currentDMId}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={(!newMessage.trim() && stagedFiles.length === 0) || (!currentChannelId && !currentDMId)}
+                                    className="px-5 py-2.5 bg-emerald text-white rounded-xl hover:bg-emerald-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg"
+                                >
+                                    Send
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
