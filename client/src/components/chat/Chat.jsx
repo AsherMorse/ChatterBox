@@ -58,11 +58,21 @@ function Chat({ onLogout }) {
             ? realtimeService.subscribeToChannel(currentChannelId, handleRealtimeMessage)
             : realtimeService.subscribeToDM(currentDMId, handleRealtimeMessage);
 
-        // Subscribe to typing indicators (only for channels)
+        // Subscribe to typing indicators
         let typingChannel;
         if (currentChannelId) {
             typingChannel = realtimeService.subscribeToTyping(currentChannelId, (typingUsers) => {
                 console.log('Typing users update:', typingUsers);
+                setTypingUsers(
+                    typingUsers
+                        .filter(user => user.id !== currentUser.id)
+                        .map(user => user.username)
+                );
+            });
+            typingChannelRef.current = typingChannel;
+        } else if (currentDMId) {
+            typingChannel = realtimeService.subscribeToTyping(`dm:${currentDMId}`, (typingUsers) => {
+                console.log('Typing users update (DM):', typingUsers);
                 setTypingUsers(
                     typingUsers
                         .filter(user => user.id !== currentUser.id)
@@ -105,7 +115,11 @@ function Chat({ onLogout }) {
             }
             // Cleanup typing channel subscription
             if (typingChannel) {
-                realtimeService.unsubscribeFromTyping(currentChannelId);
+                if (currentChannelId) {
+                    realtimeService.unsubscribeFromTyping(currentChannelId);
+                } else if (currentDMId) {
+                    realtimeService.unsubscribeFromTyping(`dm:${currentDMId}`);
+                }
             }
         };
     }, [currentChannelId, currentDMId, currentUser.id]);
@@ -208,8 +222,8 @@ function Chat({ onLogout }) {
     };
 
     const handleTyping = () => {
-        if (!currentChannelId || !typingChannelRef.current) {
-            console.log('No channel selected or no typing channel, skipping typing indicator');
+        if (!typingChannelRef.current) {
+            console.log('No typing channel, skipping typing indicator');
             return;
         }
 
