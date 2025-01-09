@@ -10,6 +10,7 @@ import channelRoutes from './routes/channels.js';
 import userRoutes from './routes/users.js';
 import directMessageRoutes from './routes/direct-messages.js';
 import { authenticateJWT } from './middleware/auth.js';
+import userStatusRouter from './routes/userStatus.js';
 
 // Load environment variables from the root server directory
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +34,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/direct-messages', directMessageRoutes);
+app.use('/api/user-status', userStatusRouter);
 
 // Protected route example
 app.get('/api/protected', authenticateJWT, (req, res) => {

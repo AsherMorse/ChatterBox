@@ -9,6 +9,41 @@ class RealtimeService {
         this.channels = new Map();
         this.typingChannels = new Map();
         this.channelListChannel = null;
+        this.idleTimeout = null;
+        this.idleTime = 10000; // 10 seconds
+        this.userPresenceChannel = null;
+        this.initActivityListeners();
+    }
+
+    initActivityListeners() {
+        const resetIdleTimer = () => {
+            clearTimeout(this.idleTimeout);
+            this.setPresence('online');
+            this.idleTimeout = setTimeout(() => this.setPresence('idle'), this.idleTime);
+        };
+
+        window.addEventListener('mousemove', resetIdleTimer);
+        window.addEventListener('click', resetIdleTimer);
+        window.addEventListener('keypress', resetIdleTimer);
+
+        resetIdleTimer(); // Initialize the timer
+    }
+
+    async setPresence(presence) {
+        try {
+            const response = await fetch('/api/user-status/presence', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ presence }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update presence');
+            }
+        } catch (error) {
+            console.error('Error setting presence:', error);
+        }
     }
 
     subscribeToChannel(channelId, onMessage) {
@@ -552,7 +587,7 @@ class RealtimeService {
                     ]
                 },
                 (payload) => {
-                    console.log('DM conversation change:', payload);
+                    console.log('DM conversation change detected:', payload);
                     onUpdate();
                 }
             );
@@ -626,6 +661,28 @@ class RealtimeService {
             supabase.removeChannel(this.channelListChannel);
             this.channelListChannel = null;
         }
+    }
+
+    subscribeToUserPresence(onPresenceUpdate) {
+        if (this.userPresenceChannel) {
+            return this.userPresenceChannel;
+        }
+
+        this.userPresenceChannel = supabase
+            .channel('users-presence')
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'users'
+            }, (payload) => {
+                // 'payload.new' has updated user data
+                onPresenceUpdate(payload.new);
+            })
+            .subscribe((status) => {
+                console.log('Presence subscription status:', status);
+            });
+
+        return this.userPresenceChannel;
     }
 }
 
