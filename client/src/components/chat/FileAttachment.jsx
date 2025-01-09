@@ -1,7 +1,10 @@
 import PropTypes from 'prop-types';
+import { useState } from 'react';
 
 function FileAttachment({ attachment }) {
     const { fileName, fileType, fileSize, fileUrl } = attachment;
+    const [isDownloading, setIsDownloading] = useState(false);
+    const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB in bytes
 
     const formatFileSize = (bytes) => {
         if (bytes === 0) return '0 Bytes';
@@ -13,7 +16,15 @@ function FileAttachment({ attachment }) {
 
     const handleDownload = async (e) => {
         e.preventDefault();
+        if (isDownloading) return;
+
+        if (fileSize > MAX_FILE_SIZE) {
+            alert(`File is too large to download (max ${formatFileSize(MAX_FILE_SIZE)})`);
+            return;
+        }
+        
         try {
+            setIsDownloading(true);
             const response = await fetch(fileUrl);
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -26,11 +37,15 @@ function FileAttachment({ attachment }) {
             document.body.removeChild(a);
         } catch (error) {
             console.error('Error downloading file:', error);
+        } finally {
+            setIsDownloading(false);
         }
     };
 
+    const isFileTooLarge = fileSize > MAX_FILE_SIZE;
+
     return (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-alice-blue dark:bg-dark-bg-primary max-w-sm">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-alice-blue dark:bg-dark-bg-primary w-[400px]">
             <div className="text-emerald">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -40,15 +55,42 @@ function FileAttachment({ attachment }) {
                 <div className="text-sm font-medium text-gunmetal dark:text-dark-text-primary truncate">
                     {fileName}
                 </div>
-                <p className="text-xs text-rose-quartz dark:text-dark-text-secondary">
-                    {formatFileSize(fileSize)}
+                <p className={`text-xs ${isFileTooLarge ? 'text-red-500' : 'text-rose-quartz dark:text-dark-text-secondary'}`}>
+                    {formatFileSize(fileSize)} {isFileTooLarge && '(Too large)'}
                 </p>
             </div>
             <button
                 onClick={handleDownload}
-                className="px-3 py-1.5 bg-emerald hover:bg-emerald/90 text-white text-sm rounded-md transition-colors duration-200"
+                disabled={isDownloading || isFileTooLarge}
+                className={`
+                    px-3 py-1.5 text-white text-sm rounded-md 
+                    transition-all duration-200 transform hover:scale-105 active:scale-95
+                    flex items-center gap-1.5
+                    ${isFileTooLarge ? 'bg-red-500 hover:bg-red-600 cursor-not-allowed' : 'bg-emerald hover:bg-emerald/90'}
+                    ${isDownloading ? 'opacity-75 cursor-wait' : ''}
+                `}
+                title={isFileTooLarge ? `File is too large (max ${formatFileSize(MAX_FILE_SIZE)})` : ''}
             >
-                Download
+                {isDownloading ? (
+                    <>
+                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Downloading...</span>
+                    </>
+                ) : (
+                    <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {isFileTooLarge ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            )}
+                        </svg>
+                        <span>{isFileTooLarge ? 'Too Large' : 'Download'}</span>
+                    </>
+                )}
             </button>
         </div>
     );

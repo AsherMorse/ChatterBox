@@ -198,6 +198,13 @@ function Chat({ onLogout }) {
     }, [messages]);
 
     const handleFileSelect = async (file) => {
+        const MAX_UPLOAD_SIZE = 25 * 1024 * 1024; // 25MB in bytes
+        
+        if (file.size > MAX_UPLOAD_SIZE) {
+            alert(`File is too large. Maximum size is 25MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+            return;
+        }
+
         try {
             setIsUploading(true);
             const uploadedFile = await uploadFile(file);
@@ -213,8 +220,12 @@ function Chat({ onLogout }) {
             
         } catch (error) {
             console.error('Error uploading file:', error);
-            // Show error to user
-            alert('Failed to upload file. Please try again.');
+            // Show specific error message to user
+            if (error.statusCode === "413") {
+                alert('File is too large to upload. Maximum size is 25MB.');
+            } else {
+                alert('Failed to upload file. Please try again.');
+            }
         } finally {
             setIsUploading(false);
         }
@@ -231,7 +242,7 @@ function Chat({ onLogout }) {
         try {
             // Send message first
             let sentMessage;
-            const messageContent = newMessage.trim() || (stagedFiles.length > 0 ? `Shared ${stagedFiles.length} file${stagedFiles.length > 1 ? 's' : ''}` : '');
+            const messageContent = newMessage.trim();
             
             if (currentChannelId) {
                 const message = {
@@ -518,29 +529,33 @@ function Chat({ onLogout }) {
                                                         <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
                                                             {message.content}
                                                         </div>
-                                                        <div className="flex-shrink-0">
-                                                            <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
-                                                                <MessageReactions 
-                                                                    messageId={message.id}
-                                                                    currentUserId={currentUser.id}
-                                                                />
+                                                        {/* Only show reactions for text messages */}
+                                                        {(!message.file_attachments || message.file_attachments.length === 0) && (
+                                                            <div className="flex-shrink-0">
+                                                                <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
+                                                                    <MessageReactions 
+                                                                        messageId={message.id}
+                                                                        currentUserId={currentUser.id}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                     {/* Render file attachments */}
                                                     {message.file_attachments && message.file_attachments.length > 0 && (
-                                                        <div className="mt-2 space-y-2">
+                                                        <div className="mt-2 space-y-2 flex flex-col items-center w-full">
                                                             {message.file_attachments.map((attachment, index) => (
-                                                                <FileAttachment 
-                                                                    key={index} 
-                                                                    attachment={{
-                                                                        fileName: attachment.file_name,
-                                                                        fileType: attachment.file_type,
-                                                                        fileSize: attachment.file_size,
-                                                                        fileUrl: attachment.file_url,
-                                                                        thumbnailUrl: attachment.thumbnail_url
-                                                                    }}
-                                                                />
+                                                                <div key={index} className="flex justify-center w-full">
+                                                                    <FileAttachment 
+                                                                        attachment={{
+                                                                            fileName: attachment.file_name,
+                                                                            fileType: attachment.file_type,
+                                                                            fileSize: attachment.file_size,
+                                                                            fileUrl: attachment.file_url,
+                                                                            thumbnailUrl: attachment.thumbnail_url
+                                                                        }}
+                                                                    />
+                                                                </div>
                                                             ))}
                                                         </div>
                                                     )}
@@ -559,7 +574,7 @@ function Chat({ onLogout }) {
                     <div className="px-6 py-4 border-t border-powder-blue dark:border-dark-border">
                         {/* Show staged files */}
                         {stagedFiles.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-2">
+                            <div className="flex flex-col items-center gap-2 mb-2">
                                 {stagedFiles.map((file, index) => (
                                     <div 
                                         key={index} 
