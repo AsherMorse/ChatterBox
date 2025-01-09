@@ -29,6 +29,7 @@ function Chat({ onLogout }) {
     const [currentDMConversation, setCurrentDMConversation] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [stagedFiles, setStagedFiles] = useState([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const typingChannelRef = useRef(null);
@@ -456,10 +457,28 @@ function Chat({ onLogout }) {
 
     return (
         <div className="min-h-screen bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
-            <Header onLogout={onLogout} />
+            <Header 
+                onLogout={onLogout} 
+                isSidebarOpen={isSidebarOpen}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            />
             <div className="flex h-[calc(100vh-64px)] p-4 gap-4">
+                {/* Sidebar Overlay */}
+                <div 
+                    className={`lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
+                        isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                    }`}
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+
                 {/* Sidebar */}
-                <div className="w-72 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border transition-colors duration-200 flex flex-col rounded-2xl overflow-hidden">
+                <div 
+                    className={`${
+                        isSidebarOpen ? 'translate-x-0 ml-4' : '-translate-x-full'
+                    } lg:translate-x-0 fixed lg:relative lg:inset-auto inset-y-[80px] left-0 z-40 w-72 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border transition-all duration-200 flex flex-col rounded-2xl overflow-hidden ${
+                        !isSidebarOpen ? 'lg:mr-4' : ''
+                    }`}
+                >
                     <div className="p-6 flex-1 overflow-y-auto">
                         {/* Channels Section */}
                         <div className="mb-8">
@@ -467,7 +486,10 @@ function Chat({ onLogout }) {
                                 <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Workspaces</h2>
                             </div>
                             <ChannelList
-                                onChannelSelect={handleChannelSelect}
+                                onChannelSelect={(channelId) => {
+                                    handleChannelSelect(channelId);
+                                    setIsSidebarOpen(false);
+                                }}
                                 selectedChannelId={currentChannelId}
                             />
                         </div>
@@ -487,7 +509,10 @@ function Chat({ onLogout }) {
                                 </button>
                             </div>
                             <DirectMessageList
-                                onDMSelect={handleDMSelect}
+                                onDMSelect={(dmId) => {
+                                    handleDMSelect(dmId);
+                                    setIsSidebarOpen(false);
+                                }}
                                 selectedDMId={currentDMId}
                             />
                         </div>
@@ -526,7 +551,7 @@ function Chat({ onLogout }) {
                 </div>
 
                 {/* Main Chat Area */}
-                <div className="flex-1 flex flex-col bg-white dark:bg-dark-bg-primary rounded-2xl overflow-hidden border border-powder-blue dark:border-dark-border">
+                <div className="flex-1 flex flex-col bg-white dark:bg-dark-bg-primary rounded-2xl overflow-hidden border border-powder-blue dark:border-dark-border transition-all duration-200">
                     {/* Chat Header */}
                     {currentChannelId && (
                         <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center bg-[#F8FAFD] dark:bg-dark-bg-secondary">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { toggleTheme } from '../../utils/theme';
 
-const Header = ({ onLogout }) => {
+const Header = ({ onLogout, isSidebarOpen, onToggleSidebar }) => {
     const [isDark, setIsDark] = useState(false);
 
     useEffect(() => {
@@ -17,7 +17,16 @@ const Header = ({ onLogout }) => {
     return (
         <header className="bg-white dark:bg-dark-bg-secondary border-b border-powder-blue dark:border-dark-border transition-colors duration-200">
             <div className="max-w-screen-2xl mx-auto px-6 h-16 flex justify-between items-center">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-4">
+                    <button
+                        onClick={onToggleSidebar}
+                        className="lg:hidden -ml-2 p-2 rounded-xl text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary transition-colors duration-200"
+                        aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
                     <h1 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">ChatterBox</h1>
                 </div>
 
@@ -44,7 +53,9 @@ const Header = ({ onLogout }) => {
 };
 
 Header.propTypes = {
-    onLogout: PropTypes.func.isRequired
+    onLogout: PropTypes.func.isRequired,
+    isSidebarOpen: PropTypes.bool.isRequired,
+    onToggleSidebar: PropTypes.func.isRequired
 };
 
 export default Header; 
