@@ -439,47 +439,53 @@ function Chat({ onLogout }) {
             setIsTypingVisible('exiting');
             const timeout = setTimeout(() => {
                 setIsTypingVisible('hidden');
-            }, 300); // Match animation duration
+            }, 500); // Increased from 300ms to 500ms to ensure animation completes
             return () => clearTimeout(timeout);
         }
     }, [typingUsers]);
 
     // Update the renderTypingIndicator function
     const renderTypingIndicator = () => {
-        // Don't show indicator if hidden or if only the current user is typing
-        if (isTypingVisible === 'hidden' || typingUsers.length === 0) return null;
-
-        // Filter out current user from typing users
-        const otherTypingUsers = typingUsers.filter(username => username !== currentUser.username);
-        if (otherTypingUsers.length === 0) return null;
-
-        let typingText;
-        if (otherTypingUsers.length === 1) {
-            typingText = `${otherTypingUsers[0]} is typing`;
-        } else if (otherTypingUsers.length === 2) {
-            typingText = `${otherTypingUsers[0]} and ${otherTypingUsers[1]} are typing`;
-        } else {
-            const othersCount = otherTypingUsers.length - 2;
-            typingText = `${otherTypingUsers[0]}, ${otherTypingUsers[1]} and ${othersCount} more are typing`;
-        }
-
+        // Always render the container, but conditionally render the content
         return (
-            <div className={`
-                inline-flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFD] dark:bg-dark-bg-secondary 
-                border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
-                ${isTypingVisible === 'entering' ? 'animate-typing-slide-up' : ''}
-                ${isTypingVisible === 'exiting' ? 'animate-typing-slide-down' : ''}
-            `}>
-                <div className="flex space-x-1">
-                    <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                    <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
+            <div className="absolute -top-10 left-0 right-0 z-0">
+                <div className="relative h-8 overflow-visible px-6">
+                    {(isTypingVisible !== 'hidden' && typingUsers.length > 0) && (
+                        <div className={`
+                            absolute bottom-0 inline-flex items-center gap-2 px-3 py-1.5 
+                            bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                            border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                            ${isTypingVisible === 'entering' ? 'animate-typing-slide-up' : ''}
+                            ${isTypingVisible === 'exiting' ? 'animate-typing-slide-down' : ''}
+                        `}>
+                            <div className="flex space-x-1">
+                                <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
+                            </div>
+                            <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
+                                {getTypingText()}
+                            </span>
+                        </div>
+                    )}
                 </div>
-                <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
-                    {typingText}
-                </span>
             </div>
         );
+    };
+
+    // Helper function to get typing text
+    const getTypingText = () => {
+        const otherTypingUsers = typingUsers.filter(username => username !== currentUser.username);
+        if (otherTypingUsers.length === 0) return '';
+
+        if (otherTypingUsers.length === 1) {
+            return `${otherTypingUsers[0]} is typing`;
+        } else if (otherTypingUsers.length === 2) {
+            return `${otherTypingUsers[0]} and ${otherTypingUsers[1]} are typing`;
+        } else {
+            const othersCount = otherTypingUsers.length - 2;
+            return `${otherTypingUsers[0]}, ${otherTypingUsers[1]} and ${othersCount} more are typing`;
+        }
     };
 
     return (
@@ -688,11 +694,8 @@ function Chat({ onLogout }) {
 
                     {/* Message Input Container */}
                     <div className="relative">
-                        {/* Typing Indicator */}
-                        <div className="absolute -top-9 left-6 z-0 h-9 overflow-hidden">
-                            {renderTypingIndicator()}
-                        </div>
-
+                        {renderTypingIndicator()}
+                        
                         {/* Message Input */}
                         <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10">
                             {/* Show staged files */}
