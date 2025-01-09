@@ -469,7 +469,7 @@ function Chat({ onLogout }) {
                     {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto px-6 py-4">
                         {/* Messages */}
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             {messages.map((message, index) => {
                                 const isFirstInGroup = index === 0 || messages[index - 1].sender?.id !== message.sender?.id;
                                 const isLastInGroup = index === messages.length - 1 || messages[index + 1].sender?.id !== message.sender?.id;
@@ -477,7 +477,11 @@ function Chat({ onLogout }) {
                                 return (
                                     <React.Fragment key={message.id}>
                                         <div
-                                            className="group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg py-0.5 px-2.5 transition-colors duration-200"
+                                            className={`
+                                                group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg 
+                                                ${!isFirstInGroup ? '-mt-2' : ''}
+                                                py-px px-2.5 transition-colors duration-200
+                                            `}
                                             onMouseEnter={() => {
                                                 const reactionComponent = document.querySelector(`#message-reactions-${message.id}`);
                                                 if (reactionComponent) {
@@ -498,7 +502,7 @@ function Chat({ onLogout }) {
                                         >
                                             <div className="w-9 flex-shrink-0">
                                                 {isFirstInGroup && (
-                                                    <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden mt-0.5">
+                                                    <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
                                                         {message.sender?.avatar_url ? (
                                                             <img
                                                                 src={message.sender.avatar_url}
@@ -515,7 +519,7 @@ function Chat({ onLogout }) {
                                             </div>
                                             <div className="flex-1 min-w-0 ml-2.5">
                                                 {isFirstInGroup && (
-                                                    <div className="flex items-baseline gap-1.5 mb-0.5">
+                                                    <div className="flex items-baseline gap-1.5">
                                                         <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
                                                             {message.sender?.username || 'Unknown User'}
                                                         </span>
@@ -525,7 +529,7 @@ function Chat({ onLogout }) {
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2 group">
+                                                    <div className="flex items-center gap-2 group -mt-0.5">
                                                         <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
                                                             {message.content}
                                                         </div>
@@ -543,7 +547,7 @@ function Chat({ onLogout }) {
                                                     </div>
                                                     {/* Render file attachments */}
                                                     {message.file_attachments && message.file_attachments.length > 0 && (
-                                                        <div className="mt-2 space-y-2 flex flex-col items-center w-full">
+                                                        <div className="mt-0.5 flex flex-col items-center w-full">
                                                             {message.file_attachments.map((attachment, index) => (
                                                                 <div key={index} className="flex justify-center w-full">
                                                                     <FileAttachment 
@@ -562,7 +566,6 @@ function Chat({ onLogout }) {
                                                 </div>
                                             </div>
                                         </div>
-                                        {isLastInGroup && <div className="h-2" />}
                                     </React.Fragment>
                                 );
                             })}

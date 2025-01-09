@@ -92,10 +92,15 @@ function MessageReactions({ messageId, currentUserId }) {
     const handleReactionClick = async (emoji, hasReacted) => {
         try {
             if (hasReacted) {
-                // Start removal animation
-                setRemovingReactions(prev => new Set([...prev, emoji]));
-                // Wait for animation
-                await new Promise(resolve => setTimeout(resolve, 150));
+                const reactionData = reactions.find(r => r.emoji === emoji);
+                const isLastOfType = reactionData?.count === 1;
+                
+                // Only add to removing set if it's the last of its type
+                if (isLastOfType) {
+                    setRemovingReactions(prev => new Set([...prev, emoji]));
+                    // Wait for animation
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                }
                 await removeReaction(messageId, emoji);
             } else {
                 await addReaction(messageId, emoji);
@@ -144,6 +149,7 @@ function MessageReactions({ messageId, currentUserId }) {
                 {reactions.map(({ emoji, count, users }) => {
                     const hasReacted = users.some(user => user.id === currentUserId);
                     const isRemoving = removingReactions.has(emoji);
+                    const isLastOfType = count === 1;
                     
                     return (
                         <button
@@ -157,7 +163,7 @@ function MessageReactions({ messageId, currentUserId }) {
                                     : 'bg-alice-blue text-rose-quartz hover:bg-powder-blue dark:bg-dark-bg-primary dark:text-dark-text-secondary dark:hover:bg-dark-bg-secondary'
                                 }
                                 transition-all duration-200 ease-in-out transform hover:scale-105
-                                ${isRemoving ? 'animate-fade-out pointer-events-none' : 'animate-fade-in'}
+                                ${isRemoving && isLastOfType ? 'animate-fade-out pointer-events-none' : 'animate-fade-in'}
                             `}
                             title={users.map(u => u.username).join(', ')}
                             disabled={isRemoving}
