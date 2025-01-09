@@ -40,6 +40,22 @@ function Chat({ onLogout }) {
     const navigate = useNavigate();
     const [isTypingVisible, setIsTypingVisible] = useState('hidden');
 
+    // Initialize sidebar state based on screen size
+    useEffect(() => {
+        const handleResize = () => {
+            setIsSidebarOpen(window.innerWidth >= 1024); // 1024px is the 'lg' breakpoint in Tailwind
+        };
+
+        // Set initial state
+        handleResize();
+
+        // Add event listener
+        window.addEventListener('resize', handleResize);
+
+        // Cleanup
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Keep currentMessagesRef in sync with messages
     useEffect(() => {
         currentMessagesRef.current = messages;
@@ -448,22 +464,20 @@ function Chat({ onLogout }) {
         }
 
         return (
-            <div className="absolute -top-2 left-6 z-0">
-                <div className={`
-                    inline-flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFD] dark:bg-dark-bg-secondary 
-                    border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
-                    ${isTypingVisible === 'entering' ? 'animate-slide-up' : ''}
-                    ${isTypingVisible === 'exiting' ? 'animate-slide-down' : ''}
-                `}>
-                    <div className="flex space-x-1">
-                        <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                        <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                        <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
-                    </div>
-                    <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
-                        {typingText}
-                    </span>
+            <div className={`
+                inline-flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                ${isTypingVisible === 'entering' ? 'animate-typing-slide-up' : ''}
+                ${isTypingVisible === 'exiting' ? 'animate-typing-slide-down' : ''}
+            `}>
+                <div className="flex space-x-1">
+                    <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
                 </div>
+                <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
+                    {typingText}
+                </span>
             </div>
         );
     };
@@ -675,7 +689,7 @@ function Chat({ onLogout }) {
                     {/* Message Input Container */}
                     <div className="relative">
                         {/* Typing Indicator */}
-                        <div className="absolute -top-8 left-6 z-0">
+                        <div className="absolute -top-9 left-6 z-0 h-9 overflow-hidden">
                             {renderTypingIndicator()}
                         </div>
 
