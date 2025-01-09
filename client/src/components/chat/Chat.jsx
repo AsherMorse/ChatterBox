@@ -14,6 +14,9 @@ import Header from '../common/Header';
 import PropTypes from 'prop-types';
 import { getUser } from '../../services/api/auth';
 import MessageReactions from './MessageReactions';
+import FileUpload from './FileUpload';
+import FileAttachment from './FileAttachment';
+import { uploadFile, createFileAttachment } from '../../services/api/fileService';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -24,6 +27,8 @@ function Chat({ onLogout }) {
     const [isCreateDMModalOpen, setIsCreateDMModalOpen] = useState(false);
     const [currentChannel, setCurrentChannel] = useState(null);
     const [currentDMConversation, setCurrentDMConversation] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [stagedFiles, setStagedFiles] = useState([]);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const typingChannelRef = useRef(null);
@@ -134,7 +139,8 @@ function Chat({ onLogout }) {
                         id: event.message.sender_id,
                         username: 'Loading...',
                         avatar_url: null
-                    }
+                    },
+                    file_attachments: event.message.file_attachments || []
                 };
                 setMessages(prev => [...prev, messageWithSender]);
 
@@ -154,7 +160,8 @@ function Chat({ onLogout }) {
                         id: event.message.sender_id,
                         username: 'Loading...',
                         avatar_url: null
-                    }
+                    },
+                    file_attachments: event.message.file_attachments || []
                 };
                 setMessages(prev => prev.map(msg =>
                     msg.id === event.message.id ? messageWithSender : msg
@@ -190,21 +197,79 @@ function Chat({ onLogout }) {
         scrollToBottom();
     }, [messages]);
 
+    const handleFileSelect = async (file) => {
+        try {
+            setIsUploading(true);
+            const uploadedFile = await uploadFile(file);
+            
+            // Add the file to staged files instead of creating attachment immediately
+            setStagedFiles(prev => [...prev, {
+                fileName: uploadedFile.fileName,
+                fileType: uploadedFile.fileType,
+                fileSize: uploadedFile.fileSize,
+                fileUrl: uploadedFile.fileUrl,
+                thumbnailUrl: uploadedFile.thumbnailUrl
+            }]);
+            
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            // Show error to user
+            alert('Failed to upload file. Please try again.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleRemoveStagedFile = (index) => {
+        setStagedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim() && stagedFiles.length === 0) return;
 
         try {
             // Send message first
+            let sentMessage;
+            const messageContent = newMessage.trim() || (stagedFiles.length > 0 ? `Shared ${stagedFiles.length} file${stagedFiles.length > 1 ? 's' : ''}` : '');
+            
             if (currentChannelId) {
                 const message = {
-                    content: newMessage.trim(),
+                    content: messageContent,
                     channel_id: currentChannelId
                 };
-                await sendMessage(message);
+                sentMessage = await sendMessage(message);
             } else if (currentDMId) {
-                await sendDMMessage(currentDMId, newMessage.trim());
+                sentMessage = await sendDMMessage(currentDMId, messageContent);
             }
+
+            // Create file attachments for staged files
+            if (stagedFiles.length > 0 && sentMessage) {
+                const attachmentPromises = stagedFiles.map(file => 
+                    createFileAttachment({
+                        messageId: sentMessage.id,
+                        ...file
+                    })
+                );
+                
+                // Wait for all attachments to be created
+                const createdAttachments = await Promise.all(attachmentPromises);
+                
+                // Update the message with attachments
+                const updatedMessage = {
+                    ...sentMessage,
+                    file_attachments: createdAttachments
+                };
+                
+                // Update the message in the state
+                setMessages(prev => prev.map(msg => 
+                    msg.id === sentMessage.id ? updatedMessage : msg
+                ));
+
+                // Clear staged files after successful upload
+                setStagedFiles([]);
+            }
+
             setNewMessage('');
 
             // Clear typing indicator after a 200ms delay
@@ -462,6 +527,23 @@ function Chat({ onLogout }) {
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    {/* Render file attachments */}
+                                                    {message.file_attachments && message.file_attachments.length > 0 && (
+                                                        <div className="mt-2 space-y-2">
+                                                            {message.file_attachments.map((attachment, index) => (
+                                                                <FileAttachment 
+                                                                    key={index} 
+                                                                    attachment={{
+                                                                        fileName: attachment.file_name,
+                                                                        fileType: attachment.file_type,
+                                                                        fileSize: attachment.file_size,
+                                                                        fileUrl: attachment.file_url,
+                                                                        thumbnailUrl: attachment.thumbnail_url
+                                                                    }}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -475,35 +557,51 @@ function Chat({ onLogout }) {
 
                     {/* Message Input */}
                     <div className="px-6 py-4 border-t border-powder-blue dark:border-dark-border">
-                        <form onSubmit={handleSendMessage}>
-                            <div className="relative">
-                                {typingUsers.length > 0 && (
-                                    <div className="absolute -top-10 left-4 transform animate-typingIndicator">
-                                        <div className="bg-white dark:bg-dark-bg-primary shadow-lg rounded-lg px-3 py-1.5 border border-powder-blue dark:border-dark-border">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex space-x-1">
-                                                    <div className="w-1.5 h-1.5 bg-emerald rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                                                    <div className="w-1.5 h-1.5 bg-emerald rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                                                    <div className="w-1.5 h-1.5 bg-emerald rounded-full animate-bounce"></div>
-                                                </div>
-                                                <span className="text-sm text-rose-quartz dark:text-dark-text-secondary whitespace-nowrap">
-                                                    {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing
-                                                </span>
-                                            </div>
-                                        </div>
+                        {/* Show staged files */}
+                        {stagedFiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {stagedFiles.map((file, index) => (
+                                    <div 
+                                        key={index} 
+                                        className="flex items-center gap-1 bg-gray-100 dark:bg-dark-bg-secondary rounded px-2 py-1"
+                                    >
+                                        <span className="text-sm text-gray-600 dark:text-dark-text-secondary truncate max-w-[150px]">
+                                            {file.fileName}
+                                        </span>
+                                        <button
+                                            onClick={() => handleRemoveStagedFile(index)}
+                                            className="text-gray-500 hover:text-red-500 dark:text-dark-text-secondary"
+                                        >
+                                            ×
+                                        </button>
                                     </div>
-                                )}
-                                <input
-                                    type="text"
-                                    value={newMessage}
-                                    onChange={(e) => {
-                                        setNewMessage(e.target.value);
-                                        handleTyping();
-                                    }}
-                                    placeholder={currentChannelId ? `Message #${currentChannel?.name || 'Loading...'}` : "Send a message"}
-                                    className="w-full px-4 py-2 bg-alice-blue dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary"
-                                />
+                                ))}
                             </div>
+                        )}
+                        
+                        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                            <FileUpload 
+                                onFileSelect={handleFileSelect} 
+                                disabled={isUploading || (!currentChannelId && !currentDMId)} 
+                            />
+                            <input
+                                type="text"
+                                value={newMessage}
+                                onChange={(e) => {
+                                    setNewMessage(e.target.value);
+                                    handleTyping();
+                                }}
+                                placeholder="Type a message..."
+                                className="flex-1 p-2 rounded border border-gray-300 dark:border-dark-border dark:bg-dark-bg-secondary dark:text-dark-text-primary"
+                                disabled={!currentChannelId && !currentDMId}
+                            />
+                            <button
+                                type="submit"
+                                disabled={(!newMessage.trim() && stagedFiles.length === 0) || (!currentChannelId && !currentDMId)}
+                                className="px-4 py-2 bg-emerald text-white rounded hover:bg-emerald-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Send
+                            </button>
                         </form>
                     </div>
                 </div>

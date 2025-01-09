@@ -77,7 +77,8 @@ router.get('/channel/:channelId', authenticateJWT, async (req, res) => {
             .from('messages')
             .select(`
                 *,
-                sender:sender_id(id, username, avatar_url)
+                sender:sender_id(id, username, avatar_url),
+                file_attachments(*)
             `)
             .eq('channel_id', channelId)
             .order('created_at', { ascending: true })
@@ -105,7 +106,8 @@ router.get('/dm/:dmId', authenticateJWT, async (req, res) => {
             .from('messages')
             .select(`
                 *,
-                sender:sender_id(id, username, avatar_url)
+                sender:sender_id(id, username, avatar_url),
+                file_attachments(*)
             `)
             .eq('dm_id', dmId)
             .order('created_at', { ascending: true })
@@ -249,6 +251,52 @@ router.get('/:messageId/reactions', authenticateJWT, async (req, res) => {
     } catch (error) {
         console.error('Error in reactions retrieval:', error);
         res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Add file attachment to a message
+router.post('/attachments', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId, fileName, fileType, fileSize, fileUrl, thumbnailUrl } = req.body;
+        const userId = req.user.id;
+
+        // Verify message exists and user has permission
+        const { data: message, error: messageError } = await supabase
+            .from('messages')
+            .select('sender_id, channel_id, dm_id')
+            .eq('id', messageId)
+            .single();
+
+        if (messageError || !message) {
+            console.error('Error fetching message:', messageError);
+            return res.status(404).json({ message: 'Message not found' });
+        }
+
+        // Insert file attachment
+        const { data: attachment, error: attachmentError } = await supabase
+            .from('file_attachments')
+            .insert([
+                {
+                    message_id: messageId,
+                    file_name: fileName,
+                    file_type: fileType,
+                    file_size: fileSize,
+                    file_url: fileUrl,
+                    thumbnail_url: thumbnailUrl
+                }
+            ])
+            .select('*')
+            .single();
+
+        if (attachmentError) {
+            console.error('Error creating file attachment:', attachmentError);
+            return res.status(500).json({ message: 'Failed to create file attachment' });
+        }
+
+        return res.status(201).json(attachment);
+    } catch (err) {
+        console.error('Error in /messages/attachments route:', err);
+        return res.status(500).json({ message: 'Internal Server Error' });
     }
 });
 
