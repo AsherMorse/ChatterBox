@@ -14,6 +14,7 @@ class RealtimeService {
         this.idleTimeout = null;
         this.idleTime = 10000; // 10 seconds
         this.userPresenceChannel = null;
+        this.presenceSubscribers = new Map(); // Track presence update subscribers
         this.activityListenersInitialized = false;
         this.isAuthenticated = false;
         this.pendingPresenceUpdate = null;
@@ -805,25 +806,133 @@ class RealtimeService {
     }
 
     subscribeToUserPresence(onPresenceUpdate) {
-        if (this.userPresenceChannel) {
-            return this.userPresenceChannel;
+        // Generate a unique subscriber ID
+        const subscriberId = Math.random().toString(36).substring(2);
+        
+        // Store the callback with its ID
+        this.presenceSubscribers.set(subscriberId, onPresenceUpdate);
+
+        // Create the channel if it doesn't exist
+        if (!this.userPresenceChannel) {
+            this.userPresenceChannel = supabase
+                .channel('users-presence')
+                .on('postgres_changes', {
+                    event: '*', // Listen for all events
+                    schema: 'public',
+                    table: 'users'
+                }, async (payload) => {
+                    // For DELETE events, mark user as offline
+                    if (payload.eventType === 'DELETE') {
+                        const userData = { 
+                            ...payload.old, 
+                            presence: 'offline',
+                            custom_status_text: null,
+                            custom_status_color: null
+                        };
+                        this.presenceSubscribers.forEach(callback => {
+                            callback(userData);
+                        });
+                        return;
+                    }
+
+                    // For INSERT events, fetch the complete user data
+                    if (payload.eventType === 'INSERT') {
+                        const { data: user, error } = await supabase
+                            .from('users')
+                            .select('id, username, avatar_url, presence, last_seen, custom_status_text, custom_status_color')
+                            .eq('id', payload.new.id)
+                            .single();
+
+                        if (!error && user) {
+                            this.presenceSubscribers.forEach(callback => {
+                                callback(user);
+                            });
+                        }
+                        return;
+                    }
+
+                    // For UPDATE events, handle presence changes carefully
+                    if (payload.eventType === 'UPDATE') {
+                        // If presence or status was explicitly changed in this update
+                        if (payload.new.presence !== payload.old.presence ||
+                            payload.new.custom_status_text !== payload.old.custom_status_text ||
+                            payload.new.custom_status_color !== payload.old.custom_status_color) {
+                            const updatedUser = {
+                                ...payload.new,
+                                presence: payload.new.presence || payload.old.presence,
+                                custom_status_text: payload.new.custom_status_text,
+                                custom_status_color: payload.new.custom_status_color
+                            };
+                            this.presenceSubscribers.forEach(callback => {
+                                callback(updatedUser);
+                            });
+                            return;
+                        }
+
+                        // If other fields were updated, fetch complete user data
+                        const { data: user, error } = await supabase
+                            .from('users')
+                            .select('id, username, avatar_url, presence, last_seen, custom_status_text, custom_status_color')
+                            .eq('id', payload.new.id)
+                            .single();
+
+                        if (!error && user) {
+                            this.presenceSubscribers.forEach(callback => {
+                                callback(user);
+                            });
+                        }
+                    }
+                })
+                .subscribe((status) => {
+                    console.log('Presence subscription status:', status);
+                    
+                    // If subscription is successful, fetch current presence status for all users
+                    if (status === 'SUBSCRIBED') {
+                        this.fetchInitialPresenceStatus();
+                    }
+                });
+        } else {
+            // If channel exists, immediately fetch current status for the new subscriber
+            this.fetchInitialPresenceStatus();
         }
 
-        this.userPresenceChannel = supabase
-            .channel('users-presence')
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'users'
-            }, (payload) => {
-                // 'payload.new' has updated user data
-                onPresenceUpdate(payload.new);
-            })
-            .subscribe((status) => {
-                console.log('Presence subscription status:', status);
-            });
+        // Return an unsubscribe function
+        return {
+            unsubscribe: () => {
+                // Remove this subscriber's callback
+                this.presenceSubscribers.delete(subscriberId);
 
-        return this.userPresenceChannel;
+                // If no more subscribers, clean up the channel
+                if (this.presenceSubscribers.size === 0 && this.userPresenceChannel) {
+                    this.userPresenceChannel.unsubscribe();
+                    supabase.removeChannel(this.userPresenceChannel);
+                    this.userPresenceChannel = null;
+                }
+            }
+        };
+    }
+
+    async fetchInitialPresenceStatus() {
+        try {
+            const { data: users, error } = await supabase
+                .from('users')
+                .select('id, username, avatar_url, presence, last_seen, custom_status_text, custom_status_color')
+                .not('presence', 'eq', null);
+
+            if (error) {
+                console.error('Error fetching initial presence status:', error);
+                return;
+            }
+
+            // Notify subscribers about each user's current presence
+            users.forEach(user => {
+                this.presenceSubscribers.forEach(callback => {
+                    callback(user);
+                });
+            });
+        } catch (error) {
+            console.error('Error in fetchInitialPresenceStatus:', error);
+        }
     }
 }
 

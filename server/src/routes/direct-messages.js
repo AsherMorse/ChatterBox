@@ -22,13 +22,17 @@ router.get('/', authenticateJWT, async (req, res) => {
                     id,
                     username,
                     avatar_url,
-                    presence
+                    presence,
+                    custom_status_text,
+                    custom_status_color
                 ),
                 user2:user2_id(
                     id,
                     username,
                     avatar_url,
-                    presence
+                    presence,
+                    custom_status_text,
+                    custom_status_color
                 )
             `)
             .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
@@ -170,13 +174,17 @@ router.get('/:dmId', authenticateJWT, async (req, res) => {
                     id,
                     username,
                     avatar_url,
-                    presence
+                    presence,
+                    custom_status_text,
+                    custom_status_color
                 ),
                 user2:user2_id(
                     id,
                     username,
                     avatar_url,
-                    presence
+                    presence,
+                    custom_status_text,
+                    custom_status_color
                 )
             `)
             .eq('dm_id', dmId)

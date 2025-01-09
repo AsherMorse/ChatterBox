@@ -30,6 +30,7 @@ lerna-debug.log*
 TASKS.md
 TODO.md
 NOTES.md
+.cursorrules
 
 # Editor directories and files
 .vscode/*
