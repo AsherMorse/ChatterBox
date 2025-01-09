@@ -8,6 +8,7 @@ class RealtimeService {
     constructor() {
         this.channels = new Map();
         this.typingChannels = new Map();
+        this.channelListChannel = null;
     }
 
     subscribeToChannel(channelId, onMessage) {
@@ -86,17 +87,125 @@ class RealtimeService {
             )
             .on('postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*',
                     schema: 'public',
                     table: 'file_attachments'
                 },
-                (payload) => {
-                    console.log('New file attachment:', payload);
+                async (payload) => {
+                    console.log('File attachment change:', payload);
+                    
+                    // Handle deletion
+                    if (payload.eventType === 'DELETE') {
+                        // Verify this attachment belonged to the current channel
+                        const { data: message, error: messageError } = await supabase
+                            .from('messages')
+                            .select('channel_id, dm_id')
+                            .eq('id', payload.old.message_id)
+                            .single();
+
+                        if (messageError) {
+                            console.error('Error fetching message for deletion:', messageError);
+                            return;
+                        }
+
+                        if (!message) {
+                            console.log('Message not found for file attachment');
+                            return;
+                        }
+
+                        // For channel messages
+                        if (message.channel_id && message.channel_id !== channelId) {
+                            console.log('File attachment not for this channel');
+                            return;
+                        }
+
+                        // For DM messages
+                        if (message.dm_id && message.dm_id !== dmId) {
+                            console.log('File attachment not for this DM');
+                            return;
+                        }
+
+                        onMessage({
+                            type: 'message_updated',
+                            message: {
+                                id: payload.old.message_id,
+                                file_attachments: []
+                            }
+                        });
+                        return;
+                    }
+
+                    // Fetch the complete file attachment data with joins
+                    const { data: fileAttachment, error: attachmentError } = await supabase
+                        .from('file_attachments')
+                        .select(`
+                            id,
+                            message_id,
+                            uploader_id,
+                            created_at,
+                            files (
+                                id,
+                                name,
+                                type,
+                                size,
+                                url,
+                                created_at,
+                                updated_at
+                            ),
+                            messages (
+                                id,
+                                channel_id,
+                                dm_id
+                            )
+                        `)
+                        .eq('id', payload.new.id)
+                        .single();
+
+                    if (attachmentError) {
+                        console.error('Error fetching file attachment:', attachmentError);
+                        return;
+                    }
+
+                    if (!fileAttachment || !fileAttachment.files || !fileAttachment.messages) {
+                        console.error('Invalid file attachment data structure');
+                        return;
+                    }
+
+                    // Get the file and message data directly as objects
+                    const file = fileAttachment.files;
+                    const message = fileAttachment.messages;
+
+                    // Verify this attachment belongs to the current context (channel or DM)
+                    if (channelId && message.channel_id !== channelId) {
+                        console.log('File attachment not for this channel');
+                        return;
+                    }
+
+                    if (dmId && message.dm_id !== dmId) {
+                        console.log('File attachment not for this DM');
+                        return;
+                    }
+
+                    // Transform the file attachment to match the expected structure
+                    const transformedAttachment = {
+                        id: fileAttachment.id,
+                        message_id: fileAttachment.message_id,
+                        uploader_id: fileAttachment.uploader_id,
+                        created_at: fileAttachment.created_at,
+                        file_id: file.id,
+                        file_name: file.name,
+                        file_type: file.type,
+                        file_size: file.size,
+                        file_url: file.url,
+                        file_created_at: file.created_at,
+                        file_updated_at: file.updated_at
+                    };
+
                     onMessage({
                         type: 'message_updated',
                         message: {
-                            id: payload.new.message_id,
-                            file_attachments: [payload.new]
+                            id: fileAttachment.message_id,
+                            file_attachments: [transformedAttachment]
                         }
                     });
                 }
@@ -197,17 +306,103 @@ class RealtimeService {
             )
             .on('postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*',
                     schema: 'public',
                     table: 'file_attachments'
                 },
-                (payload) => {
-                    console.log('New DM file attachment:', payload);
+                async (payload) => {
+                    console.log('DM file attachment change:', payload);
+                    
+                    // Handle deletion
+                    if (payload.eventType === 'DELETE') {
+                        // Verify this attachment belonged to the current DM
+                        const { data: message } = await supabase
+                            .from('messages')
+                            .select('dm_id')
+                            .eq('id', payload.old.message_id)
+                            .single();
+
+                        if (!message || message.dm_id !== dmId) {
+                            console.log('File attachment not for this DM');
+                            return;
+                        }
+
+                        onMessage({
+                            type: 'message_updated',
+                            message: {
+                                id: payload.old.message_id,
+                                file_attachments: []
+                            }
+                        });
+                        return;
+                    }
+
+                    // Fetch the complete file attachment data with joins
+                    const { data: fileAttachment, error } = await supabase
+                        .from('file_attachments')
+                        .select(`
+                            id,
+                            message_id,
+                            uploader_id,
+                            created_at,
+                            files (
+                                id,
+                                name,
+                                type,
+                                size,
+                                url,
+                                created_at,
+                                updated_at
+                            ),
+                            messages (
+                                id,
+                                channel_id,
+                                dm_id
+                            )
+                        `)
+                        .eq('id', payload.new.id)
+                        .single();
+
+                    if (error) {
+                        console.error('Error fetching DM file attachment:', error);
+                        return;
+                    }
+
+                    if (!fileAttachment || !fileAttachment.files || !fileAttachment.messages) {
+                        console.error('Invalid file attachment data structure');
+                        return;
+                    }
+
+                    // Get the file and message data directly as objects
+                    const file = fileAttachment.files;
+                    const message = fileAttachment.messages;
+
+                    // Verify this attachment belongs to the current DM
+                    if (message.dm_id !== dmId) {
+                        console.log('File attachment not for this DM');
+                        return;
+                    }
+
+                    // Transform the file attachment to match the expected structure
+                    const transformedAttachment = {
+                        id: fileAttachment.id,
+                        message_id: fileAttachment.message_id,
+                        uploader_id: fileAttachment.uploader_id,
+                        created_at: fileAttachment.created_at,
+                        file_id: file.id,
+                        file_name: file.name,
+                        file_type: file.type,
+                        file_size: file.size,
+                        file_url: file.url,
+                        file_created_at: file.created_at,
+                        file_updated_at: file.updated_at
+                    };
+
                     onMessage({
                         type: 'message_updated',
                         message: {
-                            id: payload.new.message_id,
-                            file_attachments: [payload.new]
+                            id: fileAttachment.message_id,
+                            file_attachments: [transformedAttachment]
                         }
                     });
                 }
@@ -381,6 +576,50 @@ class RealtimeService {
             supabase.removeChannel(channel);
             this.typingChannels.delete(channelKey);
             console.log('Successfully unsubscribed from typing channel:', channelKey);
+        }
+    }
+
+    subscribeToChannelList(onChannelUpdate) {
+        if (this.channelListChannel) {
+            return this.channelListChannel;
+        }
+
+        this.channelListChannel = supabase
+            .channel('channel-list')
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'channels'
+                },
+                (payload) => {
+                    console.log('Channel change:', payload);
+                    onChannelUpdate(payload);
+                }
+            )
+            .on('postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'channel_members'
+                },
+                (payload) => {
+                    console.log('Channel member change:', payload);
+                    onChannelUpdate(payload);
+                }
+            )
+            .subscribe((status) => {
+                console.log('Channel list subscription status:', status);
+            });
+
+        return this.channelListChannel;
+    }
+
+    unsubscribeFromChannelList() {
+        if (this.channelListChannel) {
+            this.channelListChannel.unsubscribe();
+            supabase.removeChannel(this.channelListChannel);
+            this.channelListChannel = null;
         }
     }
 }

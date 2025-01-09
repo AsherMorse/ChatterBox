@@ -2,14 +2,36 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { getChannels } from '../../services/api/channelService';
+import realtimeService from '../../services/realtime/realtimeService';
+import { getUser } from '../../services/api/auth';
 
 function ChannelList({ onChannelSelect, selectedChannelId, onCreateChannel }) {
     const [channels, setChannels] = useState([]);
     const navigate = useNavigate();
+    const currentUser = getUser();
 
     useEffect(() => {
         loadChannels();
-    }, []);
+
+        // Subscribe to channel changes
+        const channel = realtimeService.subscribeToChannelList(async (payload) => {
+            // Reload channels when there's any change
+            if (payload.eventType === 'INSERT' || 
+                payload.eventType === 'DELETE' || 
+                (payload.eventType === 'UPDATE' && payload.new?.name !== payload.old?.name)) {
+                await loadChannels();
+            }
+            // For channel_members changes, only reload if it involves the current user
+            else if (payload.table === 'channel_members' && 
+                    (payload.new?.user_id === currentUser.id || payload.old?.user_id === currentUser.id)) {
+                await loadChannels();
+            }
+        });
+
+        return () => {
+            realtimeService.unsubscribeFromChannelList();
+        };
+    }, [currentUser.id]);
 
     const loadChannels = async () => {
         try {

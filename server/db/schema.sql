@@ -69,9 +69,6 @@ DROP PUBLICATION IF EXISTS supabase_realtime;
 -- Enable UUID support
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create Supabase realtime publication
-CREATE PUBLICATION supabase_realtime FOR ALL TABLES;
-
 -- Core Tables
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -155,7 +152,8 @@ CREATE TABLE files (
     type TEXT NOT NULL,
     size INTEGER NOT NULL,
     url TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE file_attachments (
@@ -231,6 +229,54 @@ CREATE TRIGGER update_file_attachments_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_file_attachments_updated_at();
 
+CREATE TRIGGER update_files_updated_at
+    BEFORE UPDATE ON files
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Setup realtime configuration
+DO $$
+DECLARE
+    table_name text;
+BEGIN
+    -- Enable replica identity for realtime tables
+    FOR table_name IN 
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'public' 
+        AND tablename IN (
+            'users', 'messages', 'message_reactions', 
+            'direct_messages', 'direct_message_participants',
+            'channels', 'channel_members', 'file_attachments'
+        )
+    LOOP
+        BEGIN
+            EXECUTE format('ALTER TABLE %I REPLICA IDENTITY FULL', table_name);
+            RAISE NOTICE 'Enabled REPLICA IDENTITY FULL for %', table_name;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Error setting REPLICA IDENTITY for %: %', table_name, SQLERRM;
+        END;
+    END LOOP;
+
+    -- Create realtime publication
+    DROP PUBLICATION IF EXISTS supabase_realtime;
+    CREATE PUBLICATION supabase_realtime FOR TABLE 
+        users,
+        messages, 
+        message_reactions, 
+        direct_messages, 
+        direct_message_participants,
+        channels,
+        channel_members,
+        file_attachments;
+
+    ALTER PUBLICATION supabase_realtime SET (publish = 'insert,update,delete');
+    RAISE NOTICE 'Realtime publication configured';
+
+EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'Error in realtime setup: %', SQLERRM;
+END $$;
+
 -- Grant permissions block
 DO $$ 
 DECLARE
@@ -282,49 +328,6 @@ BEGIN
     END LOOP;
 END $$;
 
--- Setup realtime configuration
-DO $$
-DECLARE
-    table_name text;
-BEGIN
-    -- Enable replica identity for realtime tables
-    FOR table_name IN 
-        SELECT tablename 
-        FROM pg_tables 
-        WHERE schemaname = 'public' 
-        AND tablename IN (
-            'users', 'messages', 'message_reactions', 
-            'direct_messages', 'direct_message_participants',
-            'channels', 'channel_members', 'file_attachments'
-        )
-    LOOP
-        BEGIN
-            EXECUTE format('ALTER TABLE %I REPLICA IDENTITY FULL', table_name);
-            RAISE NOTICE 'Enabled REPLICA IDENTITY FULL for %', table_name;
-        EXCEPTION WHEN OTHERS THEN
-            RAISE WARNING 'Error setting REPLICA IDENTITY for %: %', table_name, SQLERRM;
-        END;
-    END LOOP;
-
-    -- Create realtime publication
-    DROP PUBLICATION IF EXISTS supabase_realtime;
-    CREATE PUBLICATION supabase_realtime FOR TABLE 
-        users,
-        messages, 
-        message_reactions, 
-        direct_messages, 
-        direct_message_participants,
-        channels,
-        channel_members,
-        file_attachments;
-
-    ALTER PUBLICATION supabase_realtime SET (publish = 'insert,update,delete');
-    RAISE NOTICE 'Realtime publication configured';
-
-EXCEPTION WHEN OTHERS THEN
-    RAISE WARNING 'Error in realtime setup: %', SQLERRM;
-END $$;
-
 -- Final configuration
 DO $$
 DECLARE
@@ -346,6 +349,21 @@ BEGIN
         WHERE schemaname = 'public'
     LOOP
         EXECUTE format('ALTER TABLE %I DISABLE ROW LEVEL SECURITY', table_name);
+    END LOOP;
+
+    -- Enable REPLICA IDENTITY FULL for realtime tables
+    FOR table_name IN 
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'public' 
+        AND tablename IN (
+            'users', 'messages', 'message_reactions', 
+            'direct_messages', 'direct_message_participants',
+            'channels', 'channel_members', 'file_attachments'
+        )
+    LOOP
+        EXECUTE format('ALTER TABLE %I REPLICA IDENTITY FULL', table_name);
+        RAISE NOTICE 'Enabled REPLICA IDENTITY FULL for %', table_name;
     END LOOP;
 
     -- Final verification

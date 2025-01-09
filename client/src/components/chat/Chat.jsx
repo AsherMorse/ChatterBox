@@ -178,13 +178,26 @@ function Chat({ onLogout }) {
                 if (event.message.file_attachments) {
                     setMessages(prev => prev.map(msg => {
                         if (msg.id === event.message.id) {
+                            // Deduplicate file attachments based on their ID
+                            const existingAttachments = msg.file_attachments || [];
+                            const newAttachments = event.message.file_attachments;
+                            const mergedAttachments = [...existingAttachments];
+                            
+                            for (const newAttachment of newAttachments) {
+                                const existingIndex = mergedAttachments.findIndex(att => att.id === newAttachment.id);
+                                if (existingIndex === -1) {
+                                    // Add new attachment if it doesn't exist
+                                    mergedAttachments.push(newAttachment);
+                                } else {
+                                    // Update existing attachment with new data
+                                    mergedAttachments[existingIndex] = newAttachment;
+                                }
+                            }
+                            
                             return {
                                 ...msg,
                                 ...messageWithSender,
-                                file_attachments: [
-                                    ...(msg.file_attachments || []),
-                                    ...event.message.file_attachments
-                                ]
+                                file_attachments: mergedAttachments
                             };
                         }
                         return msg;

@@ -1,5 +1,6 @@
 import api from './api';
 import { supabase } from '../../config/supabase';
+import { getUser } from './auth';
 
 /**
  * Upload a file to Supabase storage
@@ -67,16 +68,73 @@ export const uploadFile = async (file) => {
  * Create a file attachment for a message
  * @param {Object} params - The attachment parameters
  * @param {string} params.messageId - The ID of the message
- * @param {Object} params.fileData - The file data from uploadFile
+ * @param {string} params.fileName - The name of the file
+ * @param {string} params.fileType - The MIME type of the file
+ * @param {number} params.fileSize - The size of the file in bytes
+ * @param {string} params.fileUrl - The public URL of the file
  * @returns {Promise<Object>} The created file attachment
  */
-export const createFileAttachment = async ({ messageId, ...fileData }) => {
+export const createFileAttachment = async ({ messageId, fileName, fileType, fileSize, fileUrl }) => {
     try {
-        const response = await api.post('/messages/attachments', {
-            messageId,
-            ...fileData
-        });
-        return response.data;
+        // First create the file record
+        const { data: file, error: fileError } = await supabase
+            .from('files')
+            .insert({
+                name: fileName,
+                type: fileType,
+                size: fileSize,
+                url: fileUrl
+            })
+            .select()
+            .single();
+
+        if (fileError) {
+            console.error('Error creating file record:', fileError);
+            throw fileError;
+        }
+
+        // Get current user from app state
+        const currentUser = getUser();
+        if (!currentUser) {
+            throw new Error('No user found');
+        }
+        
+        // Then create the file attachment
+        const { data: attachment, error: attachmentError } = await supabase
+            .from('file_attachments')
+            .insert({
+                file_id: file.id,
+                message_id: messageId,
+                uploader_id: currentUser.id
+            })
+            .select(`
+                id,
+                message_id,
+                uploader_id,
+                file:file_id (
+                    id,
+                    name,
+                    type,
+                    size,
+                    url
+                )
+            `)
+            .single();
+
+        if (attachmentError) {
+            console.error('Error creating file attachment:', attachmentError);
+            throw attachmentError;
+        }
+
+        return {
+            id: attachment.id,
+            message_id: attachment.message_id,
+            uploader_id: attachment.uploader_id,
+            file_name: attachment.file.name,
+            file_type: attachment.file.type,
+            file_size: attachment.file.size,
+            file_url: attachment.file.url
+        };
     } catch (error) {
         console.error('Error creating file attachment:', error);
         throw error;
