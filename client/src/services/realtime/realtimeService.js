@@ -337,6 +337,18 @@ class RealtimeService {
 
         return channel;
     }
+
+    unsubscribeFromTyping(channelId) {
+        const channelKey = `typing:${channelId}`;
+        console.log('Unsubscribing from typing channel:', channelKey);
+        const channel = this.typingChannels.get(channelKey);
+        if (channel) {
+            channel.unsubscribe();
+            supabase.removeChannel(channel);
+            this.typingChannels.delete(channelKey);
+            console.log('Successfully unsubscribed from typing channel:', channelKey);
+        }
+    }
 }
 
 const realtimeService = new RealtimeService();

@@ -7,7 +7,8 @@ import CreateChannelModal from './CreateChannelModal';
 import CreateDMModal from './CreateDMModal';
 import DirectMessageHeader from './DirectMessageHeader';
 import { getMessages, sendMessage, getMessageSender } from '../../services/api/messageService';
-import { getDMMessages, sendDMMessage } from '../../services/api/dmService';
+import { getDMMessages, sendDMMessage, getDMConversation } from '../../services/api/dmService';
+import { getChannel } from '../../services/api/channelService';
 import realtimeService from '../../services/realtime/realtimeService';
 import Header from '../common/Header';
 import PropTypes from 'prop-types';
@@ -21,6 +22,8 @@ function Chat({ onLogout }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCreateDMModalOpen, setIsCreateDMModalOpen] = useState(false);
+    const [currentChannel, setCurrentChannel] = useState(null);
+    const [currentDMConversation, setCurrentDMConversation] = useState(null);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const typingChannelRef = useRef(null);
@@ -100,6 +103,10 @@ function Chat({ onLogout }) {
                 realtimeService.stopTyping(typingChannelRef.current);
                 typingChannelRef.current = null;
             }
+            // Cleanup typing channel subscription
+            if (typingChannel) {
+                realtimeService.unsubscribeFromTyping(currentChannelId);
+            }
         };
     }, [currentChannelId, currentDMId, currentUser.id]);
 
@@ -174,6 +181,7 @@ function Chat({ onLogout }) {
         if (!newMessage.trim()) return;
 
         try {
+            // Send message first
             if (currentChannelId) {
                 const message = {
                     content: newMessage.trim(),
@@ -184,6 +192,16 @@ function Chat({ onLogout }) {
                 await sendDMMessage(currentDMId, newMessage.trim());
             }
             setNewMessage('');
+
+            // Clear typing indicator after a 200ms delay
+            setTimeout(() => {
+                if (typingChannelRef.current) {
+                    realtimeService.stopTyping(typingChannelRef.current);
+                    if (typingTimeoutRef.current) {
+                        clearTimeout(typingTimeoutRef.current);
+                    }
+                }
+            }, 200);
         } catch (error) {
             console.error('Error sending message:', error);
         }
@@ -236,6 +254,37 @@ function Chat({ onLogout }) {
         handleDMSelect(actualDmId);
         setIsCreateDMModalOpen(false);
     };
+
+    useEffect(() => {
+        if (currentChannelId) {
+            // Fetch channel details
+            const fetchChannel = async () => {
+                try {
+                    const data = await getChannel(currentChannelId);
+                    setCurrentChannel(data);
+                } catch (error) {
+                    console.error('Error fetching channel:', error);
+                }
+            };
+            fetchChannel();
+            setCurrentDMConversation(null);
+        } else if (currentDMId) {
+            // Fetch DM conversation details
+            const fetchDMConversation = async () => {
+                try {
+                    const data = await getDMConversation(currentDMId);
+                    setCurrentDMConversation(data);
+                } catch (error) {
+                    console.error('Error fetching DM conversation:', error);
+                }
+            };
+            fetchDMConversation();
+            setCurrentChannel(null);
+        } else {
+            setCurrentChannel(null);
+            setCurrentDMConversation(null);
+        }
+    }, [currentChannelId, currentDMId]);
 
     return (
         <div className="min-h-screen bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
@@ -316,14 +365,15 @@ function Chat({ onLogout }) {
                             <div className="flex items-center gap-2">
                                 <span className="text-2xl text-gunmetal dark:text-dark-text-primary">#</span>
                                 <h2 className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
-                                    {/* Replace with actual channel name */}
-                                    General
+                                    {currentChannel?.name || 'Loading...'}
                                 </h2>
                             </div>
                         </div>
                     )}
-                    {currentDMId && (
-                        <DirectMessageHeader user={messages[0]?.sender} />
+                    {currentDMId && currentDMConversation && (
+                        <DirectMessageHeader 
+                            user={currentDMConversation.users.find(u => u.id !== currentUser.id)} 
+                        />
                     )}
 
                     {/* Messages Area */}
@@ -436,7 +486,7 @@ function Chat({ onLogout }) {
                                         setNewMessage(e.target.value);
                                         handleTyping();
                                     }}
-                                    placeholder={currentChannelId ? "Message #general" : "Send a message"}
+                                    placeholder={currentChannelId ? `Message #${currentChannel?.name || 'Loading...'}` : "Send a message"}
                                     className="w-full px-4 py-2 bg-alice-blue dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary"
                                 />
                             </div>

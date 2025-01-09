@@ -61,4 +61,19 @@ export const sendDMMessage = async (dmId, content) => {
         console.error('Error sending DM message:', error);
         throw error;
     }
+};
+
+/**
+ * Fetches a single DM conversation by ID
+ * @param {string} dmId - The ID of the DM conversation
+ * @returns {Promise<Object>} The DM conversation with user details
+ */
+export const getDMConversation = async (dmId) => {
+    try {
+        const response = await api.get(`/direct-messages/${dmId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching DM conversation:', error);
+        throw error;
+    }
 }; 

@@ -155,4 +155,54 @@ router.get('/:dmId/messages', authenticateJWT, async (req, res) => {
     }
 });
 
+// Get a single DM conversation by ID
+router.get('/:dmId', authenticateJWT, async (req, res) => {
+    try {
+        const { dmId } = req.params;
+        const userId = req.user.id;
+
+        // Get the DM conversation with user details
+        const { data: conversation, error } = await supabase
+            .from('direct_messages')
+            .select(`
+                dm_id,
+                user1:user1_id(
+                    id,
+                    username,
+                    avatar_url,
+                    status
+                ),
+                user2:user2_id(
+                    id,
+                    username,
+                    avatar_url,
+                    status
+                )
+            `)
+            .eq('dm_id', dmId)
+            .single();
+
+        if (error) {
+            console.error('Error fetching DM conversation:', error);
+            return res.status(500).json({ message: 'Error fetching conversation' });
+        }
+
+        // Verify the user is a participant
+        if (conversation.user1.id !== userId && conversation.user2.id !== userId) {
+            return res.status(403).json({ message: 'Not authorized to view this conversation' });
+        }
+
+        // Transform the data to match the expected format
+        const transformedConversation = {
+            dm_id: conversation.dm_id,
+            users: [conversation.user1, conversation.user2]
+        };
+
+        res.json(transformedConversation);
+    } catch (error) {
+        console.error('Error in DM conversation retrieval:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export default router; 
