@@ -170,12 +170,29 @@ function Chat({ onLogout }) {
                         id: event.message.sender_id,
                         username: 'Loading...',
                         avatar_url: null
-                    },
-                    file_attachments: event.message.file_attachments || []
+                    }
                 };
-                setMessages(prev => prev.map(msg =>
-                    msg.id === event.message.id ? messageWithSender : msg
-                ));
+
+                // If we're receiving a file attachment update, merge it with existing attachments
+                if (event.message.file_attachments) {
+                    setMessages(prev => prev.map(msg => {
+                        if (msg.id === event.message.id) {
+                            return {
+                                ...msg,
+                                ...messageWithSender,
+                                file_attachments: [
+                                    ...(msg.file_attachments || []),
+                                    ...event.message.file_attachments
+                                ]
+                            };
+                        }
+                        return msg;
+                    }));
+                } else {
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === event.message.id ? { ...msg, ...messageWithSender } : msg
+                    ));
+                }
 
                 if (!event.message.sender) {
                     getMessageSender(event.message.sender_id)
@@ -406,6 +423,16 @@ function Chat({ onLogout }) {
         const otherTypingUsers = typingUsers.filter(username => username !== currentUser.username);
         if (otherTypingUsers.length === 0) return null;
 
+        let typingText;
+        if (otherTypingUsers.length === 1) {
+            typingText = `${otherTypingUsers[0]} is typing`;
+        } else if (otherTypingUsers.length === 2) {
+            typingText = `${otherTypingUsers[0]} and ${otherTypingUsers[1]} are typing`;
+        } else {
+            const othersCount = otherTypingUsers.length - 2;
+            typingText = `${otherTypingUsers[0]}, ${otherTypingUsers[1]} and ${othersCount} more are typing`;
+        }
+
         return (
             <div className="absolute -top-2 left-6 z-0">
                 <div className={`
@@ -420,7 +447,7 @@ function Chat({ onLogout }) {
                         <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
                     </div>
                     <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
-                        {otherTypingUsers.length} is typing
+                        {typingText}
                     </span>
                 </div>
             </div>

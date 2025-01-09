@@ -83,6 +83,23 @@ class RealtimeService {
                     });
                     reactionEvents.emit(messageId);
                 }
+            )
+            .on('postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'file_attachments'
+                },
+                (payload) => {
+                    console.log('New file attachment:', payload);
+                    onMessage({
+                        type: 'message_updated',
+                        message: {
+                            id: payload.new.message_id,
+                            file_attachments: [payload.new]
+                        }
+                    });
+                }
             );
 
         // Subscribe and handle status
@@ -176,6 +193,23 @@ class RealtimeService {
                         event: payload.eventType
                     });
                     reactionEvents.emit(messageId);
+                }
+            )
+            .on('postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'file_attachments'
+                },
+                (payload) => {
+                    console.log('New DM file attachment:', payload);
+                    onMessage({
+                        type: 'message_updated',
+                        message: {
+                            id: payload.new.message_id,
+                            file_attachments: [payload.new]
+                        }
+                    });
                 }
             );
 
