@@ -677,17 +677,29 @@ function Chat({ onLogout }) {
                                                     <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
                                                         {message.content}
                                                     </div>
-                                                    {/* Only show reactions for text messages */}
-                                                    {(!message.file_attachments || message.file_attachments.length === 0) && (
-                                                        <div className="flex-shrink-0">
-                                                            <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
-                                                                <MessageReactions 
-                                                                    messageId={message.id}
-                                                                    currentUserId={currentUser.id}
-                                                                />
+                                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {/* Only show reactions for text messages */}
+                                                        {(!message.file_attachments || message.file_attachments.length === 0) && (
+                                                            <div className="flex-shrink-0">
+                                                                <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
+                                                                    <MessageReactions 
+                                                                        messageId={message.id}
+                                                                        currentUserId={currentUser.id}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                        {/* Reply in Thread button */}
+                                                        <button
+                                                            className="p-1.5 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200"
+                                                            onClick={() => {/* TODO: Implement thread reply */}}
+                                                            title="Reply in Thread"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 {/* Render file attachments */}
                                                 {message.file_attachments && message.file_attachments.length > 0 && (
