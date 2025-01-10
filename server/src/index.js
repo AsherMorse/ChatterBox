@@ -22,7 +22,11 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:5173', process.env.CLIENT_URL],
+    origin: [
+        'http://localhost:5173',
+        process.env.CLIENT_URL,
+        'https://chatter-box-server-ashy.vercel.app'
+    ],
     credentials: true
 }));
 app.use(express.json());
