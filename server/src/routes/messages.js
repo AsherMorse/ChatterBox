@@ -425,4 +425,158 @@ router.post('/attachments', authenticateJWT, async (req, res) => {
     }
 });
 
+// Get thread messages (replies to a parent message)
+router.get('/:messageId/thread', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { limit = 50 } = req.query;
+
+        // First get the parent message
+        const { data: parentMessage, error: parentError } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                sender:sender_id(id, username, avatar_url),
+                file_attachments(
+                    id,
+                    message_id,
+                    uploader_id,
+                    file:files!file_attachments_file_id_fkey (
+                        id,
+                        name,
+                        type,
+                        size,
+                        url
+                    )
+                )
+            `)
+            .eq('id', messageId)
+            .single();
+
+        if (parentError) {
+            console.error('Error fetching parent message:', parentError);
+            return res.status(500).json({ message: 'Error fetching parent message' });
+        }
+
+        // Then get all replies
+        const { data: replies, error: repliesError } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                sender:sender_id(id, username, avatar_url),
+                file_attachments(
+                    id,
+                    message_id,
+                    uploader_id,
+                    file:files!file_attachments_file_id_fkey (
+                        id,
+                        name,
+                        type,
+                        size,
+                        url
+                    )
+                )
+            `)
+            .eq('parent_id', messageId)
+            .order('created_at', { ascending: true })
+            .limit(limit);
+
+        if (repliesError) {
+            console.error('Error fetching thread replies:', repliesError);
+            return res.status(500).json({ message: 'Error fetching thread replies' });
+        }
+
+        // Transform file attachments to match expected client structure for both parent and replies
+        const transformMessage = (message) => ({
+            ...message,
+            file_attachments: message.file_attachments.map(attachment => ({
+                id: attachment.id,
+                message_id: attachment.message_id,
+                uploader_id: attachment.uploader_id,
+                file_name: attachment.file.name,
+                file_type: attachment.file.type,
+                file_size: attachment.file.size,
+                file_url: attachment.file.url
+            }))
+        });
+
+        const transformedParent = transformMessage(parentMessage);
+        const transformedReplies = replies.map(transformMessage);
+
+        res.json({
+            parent: transformedParent,
+            replies: transformedReplies
+        });
+    } catch (error) {
+        console.error('Error in thread messages:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Create a thread reply
+router.post('/:messageId/thread', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { content } = req.body;
+        const sender_id = req.user.id;
+
+        // First verify the parent message exists
+        const { data: parentMessage, error: parentError } = await supabase
+            .from('messages')
+            .select('id, channel_id, dm_id')
+            .eq('id', messageId)
+            .single();
+
+        if (parentError) {
+            console.error('Error fetching parent message:', parentError);
+            return res.status(500).json({ message: 'Error fetching parent message' });
+        }
+
+        // Get the sender information
+        const { data: sender, error: senderError } = await supabase
+            .from('users')
+            .select('id, username, avatar_url')
+            .eq('id', sender_id)
+            .single();
+
+        if (senderError) {
+            console.error('Error fetching sender:', senderError);
+            return res.status(500).json({ message: 'Error fetching sender information' });
+        }
+
+        // Create the reply message
+        const { data: reply, error: replyError } = await supabase
+            .from('messages')
+            .insert({
+                content,
+                sender_id,
+                channel_id: parentMessage.channel_id,
+                dm_id: parentMessage.dm_id,
+                parent_id: messageId
+            })
+            .select(`
+                *,
+                sender:sender_id(id, username, avatar_url)
+            `)
+            .single();
+
+        if (replyError) {
+            console.error('Error creating reply:', replyError);
+            return res.status(500).json({ message: 'Error creating reply' });
+        }
+
+        // Format the response
+        const formattedReply = {
+            ...reply,
+            sender,
+            file_attachments: []
+        };
+
+        res.status(201).json(formattedReply);
+    } catch (error) {
+        console.error('Error in create thread reply:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export default router;
