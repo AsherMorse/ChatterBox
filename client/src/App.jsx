@@ -9,34 +9,68 @@ import realtimeService from './services/realtime/realtimeService';
 
 function App() {
     const [user, setUser] = useState(getUser());
+    const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
         // Initialize theme when app loads
         initializeTheme();
 
-        // Set initial authentication state
-        realtimeService.setAuthenticated(!!user);
+        // Initialize realtime service
+        const initializeApp = async () => {
+            try {
+                // Initialize realtime service
+                await realtimeService.initialize();
+                
+                // Set initial authentication state
+                realtimeService.setAuthenticated(!!user);
+                setIsInitialized(true);
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                setIsInitialized(true);
+            }
+        };
+
+        initializeApp();
 
         // Clean up on unmount
         return () => {
             realtimeService.setAuthenticated(false);
         };
-    }, []);
+    }, [user]);
 
     const handleLogin = (userData) => {
         setUser(userData);
-        realtimeService.setAuthenticated(true);
+        if (realtimeService.setAuthenticated) {
+            realtimeService.setAuthenticated(true);
+        }
     };
 
-    const handleLogout = () => {
-        // Set offline presence before logging out
-        realtimeService.setPresence('offline').finally(() => {
-            realtimeService.setAuthenticated(false);
+    const handleLogout = async () => {
+        try {
+            // Set offline presence before logging out
+            if (realtimeService.setPresence) {
+                await realtimeService.setPresence('offline');
+            }
+            if (realtimeService.setAuthenticated) {
+                realtimeService.setAuthenticated(false);
+            }
+        } catch (error) {
+            console.error('Error during logout:', error);
+        } finally {
             localStorage.removeItem('auth_token');
             localStorage.removeItem('user');
             setUser(null);
-        });
+        }
     };
+
+    // Show loading state while initializing
+    if (!isInitialized) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-alice-blue dark:bg-dark-bg-primary">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald"></div>
+            </div>
+        );
+    }
 
     if (!user) {
         return <Auth onLogin={handleLogin} />;

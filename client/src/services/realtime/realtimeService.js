@@ -19,6 +19,67 @@ class RealtimeService {
         this.maxRetries = 3;
         this.retryCount = 0;
         this.retryDelay = 1000;
+        this.initialized = false;
+    }
+
+    async initialize() {
+        if (this.initialized) {
+            return;
+        }
+
+        try {
+            // Validate current authentication state
+            const token = this.validateToken();
+            this.isAuthenticated = !!token;
+
+            if (this.isAuthenticated) {
+                await this.startPresenceMonitoring();
+            }
+
+            this.initialized = true;
+            console.log('RealtimeService initialized successfully');
+        } catch (error) {
+            console.error('Error initializing RealtimeService:', error);
+            throw error;
+        }
+    }
+
+    setAuthenticated(isAuthenticated) {
+        console.log('Setting authentication state:', isAuthenticated);
+        this.isAuthenticated = isAuthenticated;
+
+        if (isAuthenticated) {
+            // Handle any pending presence updates
+            if (this.pendingPresenceUpdate) {
+                console.log('Processing pending presence update:', this.pendingPresenceUpdate);
+                this.setPresence(this.pendingPresenceUpdate);
+            }
+            // Start presence monitoring
+            this.startPresenceMonitoring();
+        } else {
+            // Clean up when not authenticated
+            this.stopPresenceMonitoring();
+            this.cleanupSubscriptions();
+        }
+    }
+
+    cleanupSubscriptions() {
+        // Clean up all subscriptions
+        this.channels.forEach((channel, channelId) => {
+            this.unsubscribeFromChannel(channelId);
+        });
+        this.typingChannels.forEach((channel, channelId) => {
+            this.unsubscribeFromTyping(channelId);
+        });
+        if (this.channelListChannel) {
+            this.unsubscribeFromChannelList();
+        }
+        if (this.userPresenceChannel) {
+            this.userPresenceChannel.unsubscribe();
+            supabase.removeChannel(this.userPresenceChannel);
+            this.userPresenceChannel = null;
+        }
+        this.presenceSubscribers.clear();
     }
 
     validateToken() {
