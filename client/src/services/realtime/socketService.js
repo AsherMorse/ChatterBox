@@ -9,7 +9,8 @@ class SocketService {
 
     connect(token) {
         this.socket = io(import.meta.env.VITE_WS_URL, {
-            auth: { token }
+            auth: { token },
+            withCredentials: true
         });
 
         this.socket.on('connect', () => {
