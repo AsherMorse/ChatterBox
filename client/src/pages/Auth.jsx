@@ -237,7 +237,7 @@ const Auth = ({ onLogin }) => {
                                     id="username"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                                    className="w-full px-4 py-2 rounded-lg bg-white dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald focus:outline-none text-gunmetal dark:text-dark-text-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary"
                                     placeholder="Choose a username"
                                     required
                                 />
@@ -253,7 +253,7 @@ const Auth = ({ onLogin }) => {
                                 id="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                                className="w-full px-4 py-2 rounded-lg bg-white dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald focus:outline-none text-gunmetal dark:text-dark-text-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary"
                                 placeholder="Enter your email"
                                 required
                             />
@@ -268,7 +268,7 @@ const Auth = ({ onLogin }) => {
                                 id="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                                className="w-full px-4 py-2 rounded-lg bg-white dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald focus:outline-none text-gunmetal dark:text-dark-text-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary"
                                 placeholder="Enter your password"
                                 required
                             />

@@ -18,6 +18,7 @@ import FileUpload from './FileUpload';
 import FileAttachment from './FileAttachment';
 import { uploadFile, createFileAttachment } from '../../services/api/fileService';
 import UserStatusEditor from '../sidebar/UserStatusEditor';
+import SearchBar from './SearchBar';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -40,6 +41,7 @@ function Chat({ onLogout }) {
     const currentDMId = searchParams.get('dm');
     const navigate = useNavigate();
     const [isTypingVisible, setIsTypingVisible] = useState('hidden');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Initialize sidebar state based on screen size
     useEffect(() => {
@@ -489,6 +491,12 @@ function Chat({ onLogout }) {
         }
     };
 
+    const handleSearch = (query) => {
+        setSearchQuery(query);
+        // For now, we'll just log the search query
+        console.log('Searching for:', query);
+    };
+
     return (
         <div className="min-h-screen bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
             <Header 
@@ -508,10 +516,8 @@ function Chat({ onLogout }) {
                 {/* Sidebar */}
                 <div 
                     className={`${
-                        isSidebarOpen ? 'translate-x-0 ml-4' : '-translate-x-full'
-                    } lg:translate-x-0 fixed lg:relative lg:inset-auto inset-y-[80px] left-0 z-40 w-72 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border transition-all duration-200 flex flex-col rounded-2xl overflow-hidden ${
-                        !isSidebarOpen ? 'lg:mr-4' : ''
-                    }`}
+                        isSidebarOpen ? 'translate-x-0 lg:translate-x-0 left-4 lg:left-0' : '-translate-x-full left-0'
+                    } lg:translate-x-0 fixed lg:relative lg:inset-auto inset-y-[80px] z-40 w-72 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border transition-all duration-200 flex flex-col rounded-2xl overflow-hidden`}
                 >
                     <div className="p-6 flex-1 overflow-y-auto">
                         {/* Channels Section */}
@@ -563,19 +569,23 @@ function Chat({ onLogout }) {
                 <div className="flex-1 flex flex-col bg-white dark:bg-dark-bg-primary rounded-2xl overflow-hidden border border-powder-blue dark:border-dark-border transition-all duration-200">
                     {/* Chat Header */}
                     {currentChannelId && (
-                        <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center bg-[#F8FAFD] dark:bg-dark-bg-secondary">
+                        <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center justify-between bg-[#F8FAFD] dark:bg-dark-bg-secondary">
                             <div className="flex items-center gap-2">
                                 <span className="text-2xl text-gunmetal dark:text-dark-text-primary">#</span>
                                 <h2 className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
                                     {currentChannel?.name || 'Loading...'}
                                 </h2>
                             </div>
+                            <SearchBar onSearch={handleSearch} />
                         </div>
                     )}
                     {currentDMId && currentDMConversation && (
-                        <DirectMessageHeader 
-                            user={currentDMConversation.users.find(u => u.id !== currentUser.id)} 
-                        />
+                        <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center justify-between bg-[#F8FAFD] dark:bg-dark-bg-secondary">
+                            <DirectMessageHeader 
+                                user={currentDMConversation.users.find(u => u.id !== currentUser.id)} 
+                            />
+                            <SearchBar onSearch={handleSearch} />
+                        </div>
                     )}
 
                     {/* Messages Area */}
@@ -713,7 +723,7 @@ function Chat({ onLogout }) {
                                         }
                                     }}
                                     placeholder="Type a message..."
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-powder-blue dark:border-dark-border bg-white dark:bg-dark-bg-secondary dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-emerald transition-all duration-200"
+                                    className="flex-1 px-4 py-2.5 rounded-xl border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary dark:text-dark-text-primary focus:outline-none"
                                     disabled={!currentChannelId && !currentDMId}
                                 />
                                 <button
