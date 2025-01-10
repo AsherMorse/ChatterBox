@@ -22,11 +22,16 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-    origin: process.env.CLIENT_URL,
+    origin: ['http://localhost:5173', process.env.CLIENT_URL],
     credentials: true
 }));
 app.use(express.json());
 app.use(passport.initialize());
+
+// Add root route handler
+app.get('/', (req, res) => {
+    res.json({ message: 'ChatterBox API is running' });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
