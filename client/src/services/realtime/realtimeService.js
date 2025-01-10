@@ -12,49 +12,18 @@ class RealtimeService {
         this.typingChannels = new Map();
         this.channelListChannel = null;
         this.userPresenceChannel = null;
-        this.presenceSubscribers = new Map(); // Track presence update subscribers
+        this.presenceSubscribers = new Map();
         this.isAuthenticated = false;
         this.pendingPresenceUpdate = null;
         this.presenceRetryTimeout = null;
         this.maxRetries = 3;
         this.retryCount = 0;
-        this.retryDelay = 1000; // Start with 1 second delay
-    }
-
-    setAuthenticated(status) {
-        const previousStatus = this.isAuthenticated;
-        this.isAuthenticated = status;
-        
-        if (status) {
-            // Clear any existing retry timeout
-            if (this.presenceRetryTimeout) {
-                clearTimeout(this.presenceRetryTimeout);
-                this.presenceRetryTimeout = null;
-            }
-            
-            // Reset retry counters
-            this.retryCount = 0;
-            this.retryDelay = 1000;
-
-            // Handle pending presence update if exists
-            if (this.pendingPresenceUpdate) {
-                this.setPresence(this.pendingPresenceUpdate);
-                this.pendingPresenceUpdate = null;
-            }
-        } else {
-            // Set offline when becoming unauthenticated
-            this.setPresence('offline');
-            this.pendingPresenceUpdate = null;
-            if (this.presenceRetryTimeout) {
-                clearTimeout(this.presenceRetryTimeout);
-                this.presenceRetryTimeout = null;
-            }
-        }
+        this.retryDelay = 1000;
     }
 
     validateToken() {
         const token = getToken();
-        return token && typeof token === 'string' && token.trim() !== '';
+        return !!token;
     }
 
     async setPresence(presence) {
@@ -80,14 +49,23 @@ class RealtimeService {
         }
 
         try {
+            console.log('Updating presence to:', presence);
             const response = await api.patch('/user-status/presence', { presence });
             
-            // Reset retry counters on success
-            this.retryCount = 0;
-            this.retryDelay = 1000;
-            this.pendingPresenceUpdate = null;
+            if (response.data) {
+                // Reset retry counters on success
+                this.retryCount = 0;
+                this.retryDelay = 1000;
+                this.pendingPresenceUpdate = null;
 
-            return true;
+                // Notify subscribers about the update
+                this.presenceSubscribers.forEach(callback => {
+                    callback(response.data);
+                });
+
+                console.log('Presence updated successfully:', response.data);
+                return true;
+            }
         } catch (error) {
             console.error('Error updating presence:', {
                 message: error.message,
@@ -116,7 +94,7 @@ class RealtimeService {
                 }, this.retryDelay);
             } else {
                 console.error('Max retry attempts reached for presence update');
-                this.pendingPresenceUpdate = presence; // Keep the last attempted presence state
+                this.pendingPresenceUpdate = presence;
             }
 
             throw error;

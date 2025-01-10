@@ -17,6 +17,7 @@ function UserStatusEditor({ currentUser, onLogout }) {
     const [isPresenceMenuOpen, setIsPresenceMenuOpen] = useState(false);
     const [selectedColor, setSelectedColor] = useState(currentUser?.custom_status_color || DEFAULT_COLORS[0]);
     const [customStatusText, setCustomStatusText] = useState(currentUser?.custom_status_text || '');
+    const [isUpdating, setIsUpdating] = useState(false);
     const menuRef = useRef(null);
     const timeoutRef = useRef(null);
 
@@ -59,40 +60,69 @@ function UserStatusEditor({ currentUser, onLogout }) {
     };
 
     const handlePresenceChange = async (newPresence) => {
+        if (isUpdating) return;
+        
         try {
+            setIsUpdating(true);
+            console.log('Updating presence to:', newPresence);
             await updatePresence(newPresence);
+            
             const presenceColor = getPresenceColor(newPresence);
+            console.log('Updating custom status with color:', presenceColor);
+            
             // Set custom status when changing presence
             await updateCustomStatus({ 
                 custom_status_text: getPresenceText(newPresence),
                 custom_status_color: presenceColor
             });
+            
             setCustomStatusText(getPresenceText(newPresence));
             setSelectedColor(presenceColor);
             setIsPresenceMenuOpen(false);
         } catch (error) {
             console.error('Error updating presence:', error);
+            // Revert to previous state on error
+            setCustomStatusText(currentUser?.custom_status_text || getPresenceText(currentUser?.presence || 'online'));
+            setSelectedColor(currentUser?.custom_status_color || getPresenceColor(currentUser?.presence || 'online'));
+        } finally {
+            setIsUpdating(false);
         }
     };
 
     const handleColorChange = async (color) => {
+        if (isUpdating) return;
+        
         try {
+            setIsUpdating(true);
+            console.log('Updating status color to:', color);
             await updateCustomStatus({ custom_status_color: color });
             setSelectedColor(color);
         } catch (error) {
             console.error('Error updating status color:', error);
+            // Revert to previous color on error
+            setSelectedColor(currentUser?.custom_status_color || getPresenceColor(currentUser?.presence || 'online'));
+        } finally {
+            setIsUpdating(false);
         }
     };
 
     const handleStatusTextChange = async (text) => {
+        if (isUpdating) return;
+        
         try {
+            setIsUpdating(true);
             setCustomStatusText(text);
+            console.log('Updating status text to:', text);
             await updateCustomStatus({ 
                 custom_status_text: text,
                 custom_status_color: selectedColor 
             });
         } catch (error) {
             console.error('Error updating status text:', error);
+            // Revert to previous text on error
+            setCustomStatusText(currentUser?.custom_status_text || getPresenceText(currentUser?.presence || 'online'));
+        } finally {
+            setIsUpdating(false);
         }
     };
 
