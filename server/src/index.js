@@ -25,12 +25,10 @@ app.use(cors({
     origin: [
         'http://localhost:5173',
         process.env.CLIENT_URL,
-        'https://chatter-box-server-ashy.vercel.app',
-        'https://chatter-box-client-five.vercel.app'
+        'https://chatter-box-server-ashy.vercel.app'
     ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true
 }));
 app.use(express.json());
 app.use(passport.initialize());
