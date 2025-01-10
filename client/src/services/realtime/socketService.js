@@ -8,8 +8,9 @@ class SocketService {
     }
 
     connect(token) {
-        this.socket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3000', {
-            auth: { token }
+        this.socket = io(import.meta.env.VITE_WS_URL, {
+            auth: { token },
+            withCredentials: true
         });
 
         this.socket.on('connect', () => {
