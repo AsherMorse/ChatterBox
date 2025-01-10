@@ -22,6 +22,7 @@ import SearchBar from '../features/SearchBar';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
+    const [filteredMessages, setFilteredMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [typingUsers, setTypingUsers] = useState([]);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -42,6 +43,8 @@ function Chat({ onLogout }) {
     const navigate = useNavigate();
     const [isTypingVisible, setIsTypingVisible] = useState('hidden');
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const messageRefs = useRef({});
 
     // Initialize sidebar state based on screen size
     useEffect(() => {
@@ -493,8 +496,40 @@ function Chat({ onLogout }) {
 
     const handleSearch = (query) => {
         setSearchQuery(query);
-        // For now, we'll just log the search query
-        console.log('Searching for:', query);
+        if (!query.trim()) {
+            setSearchResults([]);
+            return;
+        }
+        
+        const results = messages.filter(message => 
+            message.content?.toLowerCase().includes(query.toLowerCase())
+        );
+        setSearchResults(results);
+    };
+
+    const handleMessageClick = (message) => {
+        const messageElement = messageRefs.current[message.id];
+        const messagesContainer = messageElement?.closest('.overflow-y-auto');
+        
+        if (messageElement && messagesContainer) {
+            // Calculate the center position
+            const containerHeight = messagesContainer.clientHeight;
+            const messageTop = messageElement.offsetTop;
+            const messageHeight = messageElement.clientHeight;
+            const scrollTop = messageTop - (containerHeight / 2) + (messageHeight / 2);
+            
+            // Smooth scroll to position
+            messagesContainer.scrollTo({
+                top: scrollTop,
+                behavior: 'smooth'
+            });
+
+            // Add highlight effect
+            messageElement.classList.add('bg-emerald/10');
+            setTimeout(() => {
+                messageElement.classList.remove('bg-emerald/10');
+            }, 2000);
+        }
     };
 
     return (
@@ -576,7 +611,11 @@ function Chat({ onLogout }) {
                                     {currentChannel?.name || 'Loading...'}
                                 </h2>
                             </div>
-                            <SearchBar onSearch={handleSearch} />
+                            <SearchBar 
+                                onSearch={handleSearch} 
+                                searchResults={searchResults} 
+                                onMessageClick={handleMessageClick}
+                            />
                         </div>
                     )}
                     {currentDMId && currentDMConversation && (
@@ -584,7 +623,11 @@ function Chat({ onLogout }) {
                             <DirectMessageHeader 
                                 user={currentDMConversation.users.find(u => u.id !== currentUser.id)} 
                             />
-                            <SearchBar onSearch={handleSearch} />
+                            <SearchBar 
+                                onSearch={handleSearch} 
+                                searchResults={searchResults} 
+                                onMessageClick={handleMessageClick}
+                            />
                         </div>
                     )}
 
@@ -599,6 +642,7 @@ function Chat({ onLogout }) {
                                 return (
                                     <div
                                         key={message.id}
+                                        ref={el => messageRefs.current[message.id] = el}
                                         className={`
                                             group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-secondary rounded-xl 
                                             ${!isFirstInGroup ? '-mt-1' : 'mt-1'}
