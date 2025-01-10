@@ -82,20 +82,20 @@ function Chat({ onLogout }) {
         setMessages([]);
         setTypingUsers([]);
 
-        // Subscribe to realtime messages
-        const messageChannel = currentChannelId 
-            ? realtimeService.subscribeToChannel(currentChannelId, handleRealtimeMessage)
-            : realtimeService.subscribeToDM(currentDMId, handleRealtimeMessage);
+        // Cleanup previous typing subscription
+        if (typingChannelRef.current) {
+            realtimeService.stopTyping(typingChannelRef.current);
+            if (currentChannelId) {
+                realtimeService.unsubscribeFromTyping(currentChannelId);
+            } else if (currentDMId) {
+                realtimeService.unsubscribeFromTyping(`dm:${currentDMId}`);
+            }
+            typingChannelRef.current = null;
+        }
 
-        // Subscribe to typing indicators
+        // Subscribe to typing indicators first
         let typingChannel;
         if (currentChannelId) {
-            // Ensure we unsubscribe from any existing typing channel first
-            if (typingChannelRef.current) {
-                realtimeService.stopTyping(typingChannelRef.current);
-                realtimeService.unsubscribeFromTyping(currentChannelId);
-            }
-            
             typingChannel = realtimeService.subscribeToTyping(currentChannelId, (typingUsers) => {
                 console.log('Typing users update:', typingUsers);
                 setTypingUsers(
@@ -106,12 +106,6 @@ function Chat({ onLogout }) {
             });
             typingChannelRef.current = typingChannel;
         } else if (currentDMId) {
-            // Ensure we unsubscribe from any existing typing channel first
-            if (typingChannelRef.current) {
-                realtimeService.stopTyping(typingChannelRef.current);
-                realtimeService.unsubscribeFromTyping(`dm:${currentDMId}`);
-            }
-            
             typingChannel = realtimeService.subscribeToTyping(`dm:${currentDMId}`, (typingUsers) => {
                 console.log('Typing users update (DM):', typingUsers);
                 setTypingUsers(
@@ -122,6 +116,11 @@ function Chat({ onLogout }) {
             });
             typingChannelRef.current = typingChannel;
         }
+
+        // Subscribe to realtime messages
+        const messageChannel = currentChannelId 
+            ? realtimeService.subscribeToChannel(currentChannelId, handleRealtimeMessage)
+            : realtimeService.subscribeToDM(currentDMId, handleRealtimeMessage);
 
         // Load initial messages
         const loadMessages = async () => {
@@ -385,7 +384,6 @@ function Chat({ onLogout }) {
         // Clear typing state when changing channels
         if (typingChannelRef.current) {
             realtimeService.stopTyping(typingChannelRef.current);
-            typingChannelRef.current = null;
         }
         setSearchParams({ channel: channelId });
     };
@@ -394,7 +392,6 @@ function Chat({ onLogout }) {
         // Clear typing state when changing DMs
         if (typingChannelRef.current) {
             realtimeService.stopTyping(typingChannelRef.current);
-            typingChannelRef.current = null;
         }
         setSearchParams({ dm: dmId });
     };
