@@ -451,22 +451,23 @@ function Chat({ onLogout }) {
     const renderTypingIndicator = () => {
         // Always render the container, but conditionally render the content
         return (
-            <div className="absolute -top-10 left-0 right-0 z-0">
-                <div className="relative h-8 overflow-visible px-6">
+            <div className="absolute left-1/2 -translate-x-1/2 -top-10 z-0">
+                <div className="relative h-8 overflow-visible">
                     {(isTypingVisible !== 'hidden' && typingUsers.length > 0) && (
                         <div className={`
-                            absolute bottom-0 inline-flex items-center gap-2 px-3 py-1.5 
+                            inline-flex items-center gap-2 px-3 py-1.5 
                             bg-[#F8FAFD] dark:bg-dark-bg-secondary 
                             border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
                             ${isTypingVisible === 'entering' ? 'animate-typing-slide-up' : ''}
                             ${isTypingVisible === 'exiting' ? 'animate-typing-slide-down' : ''}
+                            whitespace-nowrap
                         `}>
                             <div className="flex space-x-1">
                                 <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                                 <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                                 <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
                             </div>
-                            <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
+                            <span className="text-sm text-[#272D2D] dark:text-dark-text-primary">
                                 {getTypingText()}
                             </span>
                         </div>
