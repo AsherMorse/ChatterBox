@@ -54,7 +54,3 @@ Thumbs.db
 # Coverage
 coverage/
 .nyc_output/
-
-# Private Keys
-*.pem
-chatter-box-dev.pem 

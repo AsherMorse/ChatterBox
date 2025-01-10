@@ -1,17 +1,17 @@
-# ChatterBox UI Foundations
+# ChatterBox Design System
 
 ## Color System
 
 ### Core Colors
-- Gunmetal `#272D2D`: Primary color for text and key UI elements
-- Rose Quartz `#A39BA8`: Secondary text and subtle UI elements
-- Emerald `#23CE6B`: Action buttons and interactive elements
+- Gunmetal `#272D2D`: Primary Color for Text and Key UI Elements
+- Rose Quartz `#A39BA8`: Secondary Text and Subtle UI Elements
+- Emerald `#23CE6B`: Action Buttons and Interactive Elements
 
 ### Background System
-- Alice Blue `#EDF5FC`: Light mode primary background
-- Surface Alt `#2A2D30`: Dark mode surface variations
-- Dark Background Primary `#1A1D1D`: Dark mode primary background
-- Dark Background Secondary `#2F3136`: Dark mode secondary background
+- Alice Blue `#EDF5FC`: Light Mode Primary Background
+- Surface Alt `#2A2D30`: Dark Mode Surface Variations
+- Dark Background Primary `#1A1D1D`: Dark Mode Primary Background
+- Dark Background Secondary `#2F3136`: Dark Mode Secondary Background
 
 ### Text Colors
 - Light Mode:
@@ -57,14 +57,14 @@
   ```
 
 ### Font Scale
-- xs: 0.75rem
-- sm: 0.875rem
-- base: 1rem
-- lg: 1.125rem
-- xl: 1.25rem
-- 2xl: 1.5rem
-- 3xl: 1.875rem
-- 4xl: 2.25rem
+- XS: 0.75rem
+- SM: 0.875rem
+- Base: 1rem
+- LG: 1.125rem
+- XL: 1.25rem
+- 2XL: 1.5rem
+- 3XL: 1.875rem
+- 4XL: 2.25rem
 
 ## Component Patterns
 
@@ -104,17 +104,17 @@ transition-colors duration-200
 ## Layout & Spacing
 
 ### Container Widths
-- Form containers: `max-w-md`
-- Content areas: `max-w-4xl`
-- Full width: `max-w-full`
+- Form Containers: `max-w-md`
+- Content Areas: `max-w-4xl`
+- Full Width: `max-w-full`
 
 ### Spacing Scale
-- xs: 0.25rem (4px)
-- sm: 0.5rem (8px)
-- base: 1rem (16px)
-- lg: 1.5rem (24px)
-- xl: 2rem (32px)
-- 2xl: 3rem (48px)
+- XS: 0.25rem (4px)
+- SM: 0.5rem (8px)
+- Base: 1rem (16px)
+- LG: 1.5rem (24px)
+- XL: 2rem (32px)
+- 2XL: 3rem (48px)
 
 ### Border Radius
 - Base: `rounded` (4px)
@@ -167,27 +167,27 @@ dark:focus:border-emerald
 ## Best Practices
 
 ### Accessibility
-- Maintain color contrast ratios (WCAG 2.1 AA)
-- Use semantic HTML elements
-- Include proper ARIA labels
-- Support keyboard navigation
-- Provide visible focus states
+- Maintain Color Contrast Ratios (WCAG 2.1 AA)
+- Use Semantic HTML Elements
+- Include Proper ARIA Labels
+- Support Keyboard Navigation
+- Provide Visible Focus States
 
 ### Responsive Design
-- Mobile-first approach
-- Consistent spacing across breakpoints
-- Flexible layouts using Flexbox/Grid
-- Appropriate touch targets (minimum 44x44px)
+- Mobile-First Approach
+- Consistent Spacing Across Breakpoints
+- Flexible Layouts Using Flexbox/Grid
+- Appropriate Touch Targets (Minimum 44x44px)
 
 ### Performance
-- Optimize transitions for 60fps
-- Use system fonts
-- Implement lazy loading where appropriate
-- Minimize layout shifts
+- Optimize Transitions for 60fps
+- Use System Fonts
+- Implement Lazy Loading Where Appropriate
+- Minimize Layout Shifts
 
 ### Component Guidelines
-- Consistent padding and spacing
-- Clear interactive states
-- Predictable behavior
-- Meaningful animations
-- Proper error handling 
+- Consistent Padding and Spacing
+- Clear Interactive States
+- Predictable Behavior
+- Meaningful Animations
+- Proper Error Handling 
