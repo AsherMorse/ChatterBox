@@ -1,236 +1,193 @@
-# ChatterBox Design System
+# ChatterBox UI Foundations
 
-## 1. Colors
+## Color System
 
-### Primary Colors
-- Primary: `#272D2D` (Gunmetal)
-- Primary Light: `#A39BA8` (Rose Quartz)
-- Primary Lighter: `#B8C5D6` (Powder Blue)
+### Core Colors
+- Gunmetal `#272D2D`: Primary color for text and key UI elements
+- Rose Quartz `#A39BA8`: Secondary text and subtle UI elements
+- Emerald `#23CE6B`: Action buttons and interactive elements
 
-### Secondary Colors
-- Secondary: `#23CE6B` (Emerald)
-- Secondary Light: `#4DD88C`
-- Secondary Dark: `#1BA557`
+### Background System
+- Alice Blue `#EDF5FC`: Light mode primary background
+- Surface Alt `#2A2D30`: Dark mode surface variations
+- Dark Background Primary `#1A1D1D`: Dark mode primary background
+- Dark Background Secondary `#2F3136`: Dark mode secondary background
 
-### Background Colors
-- Background: `#EDF5FC` (Alice Blue)
-- Surface: `#FFFFFF`
-- Surface Alt: `#F8FAFD`
+### Text Colors
+- Light Mode:
+  - Primary: Gunmetal `#272D2D`
+  - Secondary: Rose Quartz `#A39BA8`
+  - Interactive: Emerald `#23CE6B`
 
-### Neutral Colors
-- Border: `#B8C5D6`
-- Text Primary: `#272D2D`
-- Text Secondary: `#A39BA8`
-- Text Disabled: `#D1D5DB`
+- Dark Mode:
+  - Primary: `#FFFFFF`
+  - Secondary: `#A39BA8`
+  - Interactive: Emerald `#23CE6B`
 
-### Semantic Colors
-- Success: `#23CE6B`
-- Warning: `#F59E0B`
-- Error: `#EF4444`
-- Info: `#B8C5D6`
+### Border Colors
+- Light Mode: Powder Blue `#B8C5D6`
+- Dark Mode: `#2F3136`
 
-### Gradients
+### Interactive States
+- Hover Light: Alice Blue `#EDF5FC`
+- Hover Dark: Dark Background Primary `#1A1D1D`
+- Focus: Emerald `#23CE6B`
+
+## Typography
+
+### Text Styles
+- Headers:
+  ```css
+  text-3xl font-bold text-gunmetal dark:text-dark-text-primary
+  ```
+
+- Subheaders:
+  ```css
+  text-sm font-semibold text-rose-quartz dark:text-dark-text-secondary uppercase tracking-wider
+  ```
+
+- Body Text:
+  ```css
+  text-base text-gunmetal dark:text-dark-text-primary
+  ```
+
+- Labels:
+  ```css
+  text-sm font-semibold text-rose-quartz dark:text-dark-text-secondary uppercase tracking-wider
+  ```
+
+### Font Scale
+- xs: 0.75rem
+- sm: 0.875rem
+- base: 1rem
+- lg: 1.125rem
+- xl: 1.25rem
+- 2xl: 1.5rem
+- 3xl: 1.875rem
+- 4xl: 2.25rem
+
+## Component Patterns
+
+### Buttons
 ```css
-/* Main Gradient */
---gradient-primary: linear-gradient(135deg, #272D2D, #A39BA8);
---gradient-accent: linear-gradient(45deg, #23CE6B, #4DD88C);
---gradient-background: linear-gradient(180deg, #EDF5FC, #FFFFFF);
+/* Primary Button */
+px-4 py-3 rounded-xl bg-emerald hover:bg-emerald/90 text-white font-semibold transition-colors duration-200
+
+/* Secondary Button */
+px-4 py-3 rounded-xl bg-white dark:bg-dark-bg-secondary hover:bg-alice-blue dark:hover:bg-dark-bg-primary transition-colors duration-200
 ```
 
-## 2. Typography
+### Input Fields
+```css
+px-4 py-3 rounded-xl bg-white dark:bg-dark-bg-secondary 
+border border-powder-blue dark:border-dark-border 
+hover:border-emerald dark:hover:border-emerald 
+focus:outline-none focus:border-emerald dark:focus:border-emerald 
+text-gunmetal dark:text-dark-text-primary 
+placeholder-rose-quartz dark:placeholder-dark-text-secondary 
+transition-colors duration-200
+```
 
-### Font Families
-- Primary: 'Inter', sans-serif
-- Secondary: 'Poppins', sans-serif
-- Monospace: 'Fira Code', monospace
+### Cards
+```css
+bg-white dark:bg-dark-bg-secondary rounded-xl p-4
+border border-powder-blue dark:border-dark-border
+```
 
-### Font Sizes
-- xs: 0.75rem (12px)
-- sm: 0.875rem (14px)
-- base: 1rem (16px)
-- lg: 1.125rem (18px)
-- xl: 1.25rem (20px)
-- 2xl: 1.5rem (24px)
-- 3xl: 1.875rem (30px)
-- 4xl: 2.25rem (36px)
+### Navigation Items
+```css
+hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-xl 
+text-gunmetal dark:text-dark-text-primary
+transition-colors duration-200
+```
 
-### Font Weights
-- Light: 300
-- Regular: 400
-- Medium: 500
-- Semibold: 600
-- Bold: 700
+## Layout & Spacing
 
-## 3. Spacing
+### Container Widths
+- Form containers: `max-w-md`
+- Content areas: `max-w-4xl`
+- Full width: `max-w-full`
 
-### Base Unit: 4px
+### Spacing Scale
 - xs: 0.25rem (4px)
 - sm: 0.5rem (8px)
-- md: 1rem (16px)
+- base: 1rem (16px)
 - lg: 1.5rem (24px)
 - xl: 2rem (32px)
 - 2xl: 3rem (48px)
-- 3xl: 4rem (64px)
 
-## 4. Shadows
-- sm: `0 1px 2px 0 rgb(0 0 0 / 0.05)`
-- base: `0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)`
-- md: `0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)`
-- lg: `0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`
-- xl: `0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)`
+### Border Radius
+- Base: `rounded` (4px)
+- Medium: `rounded-lg` (8px)
+- Large: `rounded-xl` (12px)
+- Full: `rounded-full`
 
-## 5. Border Radius
-- none: 0px
-- sm: 0.125rem (2px)
-- base: 0.25rem (4px)
-- md: 0.375rem (6px)
-- lg: 0.5rem (8px)
-- xl: 0.75rem (12px)
-- 2xl: 1rem (16px)
-- full: 9999px
+## Animations
 
-## 6. Animations
+### Transitions
+```css
+/* Default Transition */
+transition-colors duration-200
 
-### Timing Functions
-- Default: cubic-bezier(0.4, 0, 0.2, 1)
-- Linear: linear
-- In: cubic-bezier(0.4, 0, 1, 1)
-- Out: cubic-bezier(0, 0, 0.2, 1)
-- In-Out: cubic-bezier(0.4, 0, 0.2, 1)
+/* Scale Transition */
+transform transition-all duration-300
+```
 
-### Duration
-- Fast: 150ms
-- Normal: 200ms
-- Slow: 300ms
-- Slower: 500ms
-
-### Common Animations
+### Animation Patterns
 ```css
 /* Fade In */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+animate-fadeIn
 
 /* Slide Up */
-@keyframes slideUp {
-  from { transform: translateY(10px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
+animate-slideUp
 
 /* Scale */
-@keyframes scale {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-/* Spin */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+animate-scale
 ```
 
-## 7. Components
+## Dark Mode Implementation
 
-### Buttons
-- Height: 2.5rem (40px)
-- Padding: 0.75rem 1.5rem
-- Border Radius: base (4px)
-- Transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1)
+### Background Hierarchy
+1. Primary: `dark:bg-dark-bg-primary`
+2. Secondary: `dark:bg-dark-bg-secondary`
+3. Surface: `dark:bg-[#2A2D30]`
 
-#### Variants
-- Primary
-- Secondary
-- Outline
-- Ghost
-- Danger
+### Text Hierarchy
+1. Primary: `dark:text-dark-text-primary`
+2. Secondary: `dark:text-dark-text-secondary`
+3. Interactive: `dark:text-emerald`
 
-### Input Fields
-- Height: 2.5rem (40px)
-- Padding: 0.5rem 0.75rem
-- Border: 1px solid border-color
-- Border Radius: base (4px)
-- Focus Ring: 2px Primary color
-
-### Cards
-- Padding: 1.5rem
-- Border Radius: lg (8px)
-- Background: Surface color
-- Shadow: base
-
-### Modal
-- Border Radius: lg (8px)
-- Background: Surface color
-- Shadow: xl
-- Max Width: 28rem (448px)
-
-## 8. Layout
-
-### Container
-- Max Width: 1280px
-- Padding: 1rem
-- Margin: auto
-
-### Grid
-- Gap: 1rem
-- Columns: 12
-- Breakpoints:
-  - sm: 640px
-  - md: 768px
-  - lg: 1024px
-  - xl: 1280px
-  - 2xl: 1536px
-
-### Z-Index Scale
-- Base: 0
-- Dropdown: 1000
-- Sticky: 1100
-- Modal Backdrop: 1200
-- Modal: 1300
-- Popover: 1400
-- Tooltip: 1500
-
-## 9. Responsive Design
-
-### Breakpoints
+### Border Treatment
 ```css
-/* Small (sm) */
-@media (min-width: 640px) { /* ... */ }
-
-/* Medium (md) */
-@media (min-width: 768px) { /* ... */ }
-
-/* Large (lg) */
-@media (min-width: 1024px) { /* ... */ }
-
-/* Extra Large (xl) */
-@media (min-width: 1280px) { /* ... */ }
-
-/* 2xl */
-@media (min-width: 1536px) { /* ... */ }
+dark:border-dark-border
+dark:hover:border-emerald
+dark:focus:border-emerald
 ```
 
-## 10. Best Practices
+## Best Practices
 
 ### Accessibility
+- Maintain color contrast ratios (WCAG 2.1 AA)
 - Use semantic HTML elements
-- Maintain WCAG 2.1 AA compliance
-- Ensure proper color contrast (minimum 4.5:1 for normal text)
-- Provide focus indicators
+- Include proper ARIA labels
 - Support keyboard navigation
-- Include ARIA labels where necessary
+- Provide visible focus states
 
-### Animation Guidelines
-- Respect user's reduced motion preferences
-- Keep animations under 400ms
-- Use appropriate easing functions
-- Avoid flashy or distracting animations
-- Ensure animations serve a purpose
+### Responsive Design
+- Mobile-first approach
+- Consistent spacing across breakpoints
+- Flexible layouts using Flexbox/Grid
+- Appropriate touch targets (minimum 44x44px)
 
 ### Performance
-- Optimize images and assets
+- Optimize transitions for 60fps
+- Use system fonts
+- Implement lazy loading where appropriate
 - Minimize layout shifts
-- Use system fonts when possible
-- Implement lazy loading
-- Cache appropriate resources 
+
+### Component Guidelines
+- Consistent padding and spacing
+- Clear interactive states
+- Predictable behavior
+- Meaningful animations
+- Proper error handling 

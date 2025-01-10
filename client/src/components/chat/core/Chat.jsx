@@ -554,9 +554,6 @@ function Chat({ onLogout }) {
                     <div className="p-6 flex-1 overflow-y-auto">
                         {/* Channels Section */}
                         <div className="mb-8">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Workspaces</h2>
-                            </div>
                             <ChannelList
                                 onChannelSelect={(channelId) => {
                                     handleChannelSelect(channelId);
@@ -570,10 +567,10 @@ function Chat({ onLogout }) {
                         {/* Direct Messages Section */}
                         <div>
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-bold text-rose-quartz dark:text-dark-text-secondary">Direct Messages</h2>
+                                <h2 className="text-sm font-semibold text-rose-quartz dark:text-dark-text-secondary uppercase tracking-wider">Direct Messages</h2>
                                 <button
                                     onClick={() => setIsCreateDMModalOpen(true)}
-                                    className="p-2 text-rose-quartz hover:text-emerald dark:text-dark-text-secondary dark:hover:text-emerald transition-colors duration-200 hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-xl"
+                                    className="p-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-xl transition-colors duration-200"
                                     title="New Message"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -726,20 +723,32 @@ function Chat({ onLogout }) {
                         <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10">
                             {/* Show staged files */}
                             {stagedFiles.length > 0 && (
-                                <div className="flex flex-col items-center gap-2 mb-3">
+                                <div className="flex flex-col gap-2 mb-3">
                                     {stagedFiles.map((file, index) => (
                                         <div 
                                             key={index} 
-                                            className="flex items-center gap-2 bg-alice-blue dark:bg-dark-bg-primary rounded-xl px-3 py-1.5"
+                                            className="flex items-center gap-3 p-3 rounded-lg bg-[#F8FAFD] dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border"
                                         >
-                                            <span className="text-sm text-gray-600 dark:text-dark-text-secondary truncate max-w-[150px]">
-                                                {file.fileName}
-                                            </span>
+                                            <div className="text-emerald">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gunmetal dark:text-dark-text-primary truncate">
+                                                    {file.fileName}
+                                                </div>
+                                                <p className="text-xs text-rose-quartz dark:text-dark-text-secondary">
+                                                    {(file.fileSize / (1024 * 1024)).toFixed(2)} MB
+                                                </p>
+                                            </div>
                                             <button
                                                 onClick={() => handleRemoveStagedFile(index)}
-                                                className="text-gray-500 hover:text-red-500 dark:text-dark-text-secondary rounded-lg p-1 hover:bg-white/50 dark:hover:bg-dark-bg-secondary/50 transition-colors duration-200"
+                                                className="p-1.5 text-rose-quartz dark:text-dark-text-secondary hover:text-red-500 dark:hover:text-red-500 hover:bg-white/50 dark:hover:bg-dark-bg-secondary/50 rounded-lg transition-colors duration-200"
                                             >
-                                                ×
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
                                             </button>
                                         </div>
                                     ))}
@@ -747,33 +756,41 @@ function Chat({ onLogout }) {
                             )}
                             
                             <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-                                <FileUpload 
-                                    onFileSelect={handleFileSelect} 
-                                    disabled={isUploading || (!currentChannelId && !currentDMId)} 
-                                />
-                                <input
-                                    type="text"
-                                    value={newMessage}
-                                    onChange={(e) => {
-                                        setNewMessage(e.target.value);
-                                        handleTyping();
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key !== 'Enter') {
+                                <div className="flex-1 relative">
+                                    <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                                        <FileUpload 
+                                            onFileSelect={handleFileSelect} 
+                                            disabled={isUploading || (!currentChannelId && !currentDMId)} 
+                                        />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={newMessage}
+                                        onChange={(e) => {
+                                            setNewMessage(e.target.value);
                                             handleTyping();
-                                        }
-                                    }}
-                                    placeholder="Type a message..."
-                                    className="flex-1 px-4 py-2.5 rounded-xl border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary dark:text-dark-text-primary focus:outline-none"
-                                    disabled={!currentChannelId && !currentDMId}
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={(!newMessage.trim() && stagedFiles.length === 0) || (!currentChannelId && !currentDMId)}
-                                    className="px-5 py-2.5 bg-emerald text-white rounded-xl hover:bg-emerald-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg"
-                                >
-                                    Send
-                                </button>
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key !== 'Enter') {
+                                                handleTyping();
+                                            }
+                                        }}
+                                        placeholder="Type a message..."
+                                        className="w-full px-4 py-2.5 pl-12 pr-12 rounded-xl border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary dark:text-dark-text-primary focus:outline-none"
+                                        disabled={!currentChannelId && !currentDMId}
+                                    />
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                        <button
+                                            type="submit"
+                                            disabled={(!newMessage.trim() && stagedFiles.length === 0) || (!currentChannelId && !currentDMId)}
+                                            className="p-2 text-emerald hover:text-emerald-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
                             </form>
                         </div>
                     </div>

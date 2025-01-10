@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { getDMConversations } from '../../../services/api/dmService';
 import { getUser } from '../../../services/api/auth';
@@ -9,6 +9,8 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const currentUser = getUser();
+    const selectedRef = useRef(null);
+    const containerRef = useRef(null);
 
     const loadConversations = async () => {
         try {
@@ -55,6 +57,19 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
         };
     }, [currentUser.id]);
 
+    useEffect(() => {
+        if (selectedRef.current && containerRef.current) {
+            const container = containerRef.current;
+            const selected = selectedRef.current;
+            const containerRect = container.getBoundingClientRect();
+            const selectedRect = selected.getBoundingClientRect();
+            const relativeTop = selectedRect.top - containerRect.top;
+            
+            container.style.setProperty('--selected-top', `${relativeTop}px`);
+            container.style.setProperty('--selected-height', `${selectedRect.height}px`);
+        }
+    }, [selectedDMId]);
+
     // Get the other user in a DM conversation
     const getOtherUser = (conversation) => {
         if (!conversation.users) {
@@ -88,69 +103,82 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
     }
 
     return (
-        <ul className="space-y-0.5">
-            {conversations.map((conversation) => {
-                const user = getOtherUser(conversation);
-                if (!user) return null; // Skip rendering if user is not found
-                return (
-                    <li
-                        key={conversation.dm_id}
-                        className={`
-                            p-2 rounded-lg cursor-pointer transition-colors duration-200
-                            ${selectedDMId === conversation.dm_id 
-                                ? 'bg-emerald/10 text-emerald' 
-                                : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
-                            }
-                        `}
-                        onClick={() => onDMSelect(conversation.dm_id)}
-                    >
-                        <div className="flex items-center gap-2">
-                            <div className="relative flex-shrink-0">
-                                {user.avatar_url ? (
-                                    <img
-                                        src={user.avatar_url}
-                                        alt={user.username}
-                                        className="w-8 h-8 rounded-xl object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-8 h-8 rounded-xl bg-powder-blue dark:bg-dark-border flex items-center justify-center">
-                                        <span className="text-sm font-medium text-gunmetal dark:text-dark-text-primary">
-                                            {user.username?.[0]?.toUpperCase() || '?'}
-                                        </span>
+        <div className="space-y-0.5 relative" ref={containerRef}>
+            <div 
+                className="absolute w-full rounded-lg bg-alice-blue dark:bg-dark-bg-primary border border-emerald" 
+                style={{
+                    top: 'var(--selected-top, 0)',
+                    height: 'var(--selected-height, 0)',
+                    opacity: selectedDMId ? 1 : 0,
+                    pointerEvents: 'none',
+                    transition: selectedDMId?.startsWith('dm_') && conversations.some(conv => conv.dm_id === selectedDMId.replace('dm_', '')) ? 'all 200ms ease-in-out' : 'opacity 200ms ease-in-out'
+                }}
+            />
+            <ul className="space-y-0.5">
+                {conversations.map((conversation) => {
+                    const user = getOtherUser(conversation);
+                    if (!user) return null;
+                    return (
+                        <li
+                            key={conversation.dm_id}
+                            ref={selectedDMId === conversation.dm_id ? selectedRef : null}
+                            onClick={() => onDMSelect(conversation.dm_id)}
+                            className={`
+                                p-2 rounded-lg cursor-pointer transition-colors duration-200 relative
+                                ${selectedDMId === conversation.dm_id 
+                                    ? 'text-emerald z-10'
+                                    : 'text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary'
+                                }
+                            `}
+                        >
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-shrink-0">
+                                    {user.avatar_url ? (
+                                        <img
+                                            src={user.avatar_url}
+                                            alt={user.username}
+                                            className="w-8 h-8 rounded-xl object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-xl bg-powder-blue dark:bg-dark-border flex items-center justify-center">
+                                            <span className="text-sm font-medium text-gunmetal dark:text-dark-text-primary">
+                                                {user.username?.[0]?.toUpperCase() || '?'}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-bg-secondary">
+                                        <div className="w-full h-full rounded-full" style={{ 
+                                            backgroundColor: user.custom_status_color || (
+                                                user.presence === 'online' ? '#10B981' 
+                                                : user.presence === 'idle' ? '#F59E0B' 
+                                                : '#94A3B8'
+                                            )
+                                        }} />
                                     </div>
-                                )}
-                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-bg-secondary">
-                                    <div className="w-full h-full rounded-full" style={{ 
-                                        backgroundColor: user.custom_status_color || (
-                                            user.presence === 'online' ? '#10B981' 
-                                            : user.presence === 'idle' ? '#F59E0B' 
-                                            : '#94A3B8'
-                                        )
-                                    }} />
+                                </div>
+                                <div className="flex flex-col min-w-0 flex-1">
+                                    <span className="text-sm font-medium truncate">
+                                        {user.username}
+                                    </span>
+                                    {user.custom_status_text ? (
+                                        <span
+                                            className="text-xs truncate"
+                                            style={{ color: user.custom_status_color }}
+                                        >
+                                            {user.custom_status_text}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs truncate text-rose-quartz dark:text-dark-text-secondary">
+                                            {user.presence === 'online' ? 'Online' : user.presence === 'idle' ? 'Idle' : 'Offline'}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex flex-col min-w-0 flex-1">
-                                <span className="text-sm font-medium truncate">
-                                    {user.username}
-                                </span>
-                                {user.custom_status_text ? (
-                                    <span
-                                        className="text-xs truncate"
-                                        style={{ color: user.custom_status_color }}
-                                    >
-                                        {user.custom_status_text}
-                                    </span>
-                                ) : (
-                                    <span className="text-xs truncate text-rose-quartz dark:text-dark-text-secondary">
-                                        {user.presence === 'online' ? 'Online' : user.presence === 'idle' ? 'Idle' : 'Offline'}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </li>
-                );
-            })}
-        </ul>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
     );
 }
 

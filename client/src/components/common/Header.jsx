@@ -16,8 +16,8 @@ const Header = ({ onLogout, isSidebarOpen, onToggleSidebar }) => {
 
     return (
         <header className="bg-white dark:bg-dark-bg-secondary border-b border-powder-blue dark:border-dark-border transition-colors duration-200">
-            <div className="max-w-screen-2xl mx-auto px-6 h-16 flex justify-between items-center">
-                <div className="flex items-center space-x-4">
+            <div className="h-16 px-6 flex items-center">
+                <div className="flex items-center gap-4">
                     <button
                         onClick={onToggleSidebar}
                         className="lg:hidden -ml-2 p-2 rounded-xl text-gunmetal dark:text-dark-text-primary hover:bg-alice-blue dark:hover:bg-dark-bg-primary transition-colors duration-200"
@@ -29,8 +29,7 @@ const Header = ({ onLogout, isSidebarOpen, onToggleSidebar }) => {
                     </button>
                     <h1 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">ChatterBox</h1>
                 </div>
-
-                <div className="flex items-center space-x-4">
+                <div className="ml-auto">
                     <button
                         onClick={handleToggleTheme}
                         className="p-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald rounded-lg transition-colors duration-200"

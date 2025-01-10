@@ -35,6 +35,10 @@ function BrowseChannels() {
         }
     };
 
+    const handleGoToChannel = (channelId) => {
+        navigate(`/chat?channel=${channelId}`);
+    };
+
     const filteredChannels = channels.filter(channel => 
         channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         channel.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -71,14 +75,14 @@ function BrowseChannels() {
                     {/* Header */}
                     <div className="flex justify-between items-center">
                         <div>
-                            <h1 className="text-2xl font-bold text-gunmetal dark:text-dark-text-primary">Browse Channels</h1>
-                            <p className="mt-1 text-rose-quartz dark:text-dark-text-secondary">
+                            <h1 className="text-xl font-semibold text-gunmetal dark:text-dark-text-primary">Browse Channels</h1>
+                            <p className="mt-1 text-sm text-rose-quartz dark:text-dark-text-secondary">
                                 Discover and join public channels
                             </p>
                         </div>
                         <button
                             onClick={() => navigate('/chat')}
-                            className="flex items-center space-x-2 px-4 py-2 text-gunmetal dark:text-dark-text-primary hover:text-emerald dark:hover:text-emerald transition-colors duration-200"
+                            className="flex items-center space-x-2 px-4 py-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-2xl transition-colors duration-200"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -99,13 +103,13 @@ function BrowseChannels() {
                             placeholder="Search channels..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border rounded-2xl focus:outline-none hover:border-emerald dark:hover:border-emerald placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
                         />
                     </div>
 
                     {/* Channel Grid */}
                     {filteredChannels.length === 0 ? (
-                        <div className="bg-white dark:bg-dark-bg-secondary rounded-xl border border-powder-blue dark:border-dark-border p-8 text-center">
+                        <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl border border-powder-blue dark:border-dark-border p-8 text-center">
                             <div className="text-rose-quartz dark:text-dark-text-secondary">
                                 {searchQuery ? 'No channels match your search' : 'No public channels available'}
                             </div>
@@ -115,7 +119,7 @@ function BrowseChannels() {
                             {filteredChannels.map((channel) => (
                                 <div
                                     key={channel.id}
-                                    className="bg-white dark:bg-dark-bg-secondary rounded-xl border border-powder-blue dark:border-dark-border overflow-hidden hover:border-emerald dark:hover:border-emerald transition-colors duration-200"
+                                    className="bg-white dark:bg-dark-bg-secondary rounded-2xl border border-powder-blue dark:border-dark-border overflow-hidden hover:border-emerald dark:hover:border-emerald transition-colors duration-200"
                                 >
                                     <div className="p-6">
                                         <div className="flex items-start justify-between">
@@ -125,7 +129,7 @@ function BrowseChannels() {
                                                     <span className="truncate">{channel.name}</span>
                                                 </h3>
                                                 {channel.description && (
-                                                    <p className="mt-2 text-rose-quartz dark:text-dark-text-secondary line-clamp-2">
+                                                    <p className="mt-2 text-sm text-rose-quartz dark:text-dark-text-secondary line-clamp-2">
                                                         {channel.description}
                                                     </p>
                                                 )}
@@ -149,10 +153,10 @@ function BrowseChannels() {
                                                 )}
                                             </div>
                                             <button
-                                                onClick={() => handleJoinChannel(channel.id)}
-                                                className="px-4 py-2 bg-emerald text-white rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald transition-all duration-200"
+                                                onClick={() => channel.is_member ? handleGoToChannel(channel.id) : handleJoinChannel(channel.id)}
+                                                className="px-4 py-2 text-emerald hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-2xl transition-colors duration-200"
                                             >
-                                                Join
+                                                {channel.is_member ? 'Go to Channel' : 'Join'}
                                             </button>
                                         </div>
                                     </div>

@@ -16,7 +16,8 @@ router.get('/public', authenticateJWT, async (req, res) => {
             .select(`
                 *,
                 creator:created_by(id, username),
-                members_count:channel_members(count)
+                members_count:channel_members(count),
+                members:channel_members(user_id)
             `)
             .eq('is_private', false)
             .order('created_at', { ascending: true });
@@ -26,10 +27,12 @@ router.get('/public', authenticateJWT, async (req, res) => {
             return res.status(500).json({ message: 'Error fetching channels' });
         }
 
-        // Format the response to include the count
+        // Format the response to include the count and is_member
         const formattedChannels = channels.map(channel => ({
             ...channel,
-            members_count: channel.members_count[0].count
+            members_count: channel.members_count[0].count,
+            is_member: channel.members.some(member => member.user_id === req.user.id),
+            members: undefined // Remove the members array from the response
         }));
 
         res.json(formattedChannels);

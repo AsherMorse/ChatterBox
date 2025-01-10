@@ -66,10 +66,11 @@ function FileUpload({ onFileSelect, disabled }) {
                 onClick={handleButtonClick}
                 disabled={disabled}
                 className={`
-                    p-2 rounded-full hover:bg-alice-blue dark:hover:bg-dark-bg-primary
+                    p-2
                     text-rose-quartz dark:text-dark-text-secondary
                     hover:text-emerald dark:hover:text-emerald
                     transition-colors duration-200
+                    disabled:opacity-50 disabled:cursor-not-allowed
                 `}
                 title="Attach file"
             >

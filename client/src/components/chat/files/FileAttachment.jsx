@@ -45,9 +45,10 @@ function FileAttachment({ attachment }) {
     const isFileTooLarge = fileSize > MAX_FILE_SIZE;
 
     return (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-alice-blue dark:bg-dark-bg-primary w-[400px]">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-alice-blue 
+                        dark:bg-[#2A2D30] w-full max-w-[400px] mb-2">
             <div className="text-emerald">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
             </div>
@@ -63,11 +64,16 @@ function FileAttachment({ attachment }) {
                 onClick={handleDownload}
                 disabled={isDownloading || isFileTooLarge}
                 className={`
-                    px-3 py-1.5 text-white text-sm rounded-md 
-                    transition-all duration-200 transform hover:scale-105 active:scale-95
+                    px-3 py-1.5 rounded-lg
                     flex items-center gap-1.5
-                    ${isFileTooLarge ? 'bg-red-500 hover:bg-red-600 cursor-not-allowed' : 'bg-emerald hover:bg-emerald/90'}
+                    text-sm font-medium
+                    transition-all duration-200
+                    ${isFileTooLarge 
+                        ? 'text-red-500 hover:bg-red-500/10' 
+                        : 'text-emerald hover:bg-emerald/10'
+                    }
                     ${isDownloading ? 'opacity-75 cursor-wait' : ''}
+                    disabled:opacity-50 disabled:cursor-not-allowed
                 `}
                 title={isFileTooLarge ? `File is too large (max ${formatFileSize(MAX_FILE_SIZE)})` : ''}
             >

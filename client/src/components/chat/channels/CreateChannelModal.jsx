@@ -38,15 +38,15 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-dark-bg-secondary rounded-xl shadow-xl w-full max-w-md animate-scale">
+            <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl shadow-xl w-full max-w-md animate-scale">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-gunmetal dark:text-dark-text-primary">Create New Channel</h2>
+                        <h2 className="text-sm font-semibold text-rose-quartz dark:text-dark-text-secondary uppercase tracking-wider">Create New Channel</h2>
                         <button
                             onClick={onClose}
-                            className="text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald transition-colors duration-200"
+                            className="p-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-xl transition-colors duration-200"
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
@@ -55,7 +55,7 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
+                                <label htmlFor="name" className="block text-sm font-medium text-rose-quartz dark:text-dark-text-secondary mb-1">
                                     Channel Name
                                 </label>
                                 <div className="relative">
@@ -65,7 +65,7 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
                                         id="name"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
-                                        className="w-full pl-8 pr-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                                        className="w-full pl-8 pr-4 py-2.5 border border-powder-blue dark:border-dark-border rounded-xl focus:outline-none hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
                                         placeholder="e.g. general"
                                         required
                                     />
@@ -73,21 +73,21 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
                             </div>
 
                             <div>
-                                <label htmlFor="description" className="block text-sm font-medium text-gunmetal dark:text-dark-text-primary mb-1">
+                                <label htmlFor="description" className="block text-sm font-medium text-rose-quartz dark:text-dark-text-secondary mb-1">
                                     Description
                                 </label>
                                 <textarea
                                     id="description"
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    className="w-full px-4 py-2 border border-powder-blue dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200"
+                                    className="w-full px-4 py-2.5 border border-powder-blue dark:border-dark-border rounded-xl focus:outline-none hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary placeholder-rose-quartz dark:placeholder-dark-text-secondary text-gunmetal dark:text-dark-text-primary transition-colors duration-200 resize-none"
                                     placeholder="What's this channel about?"
                                     rows="3"
                                 />
                             </div>
 
                             {error && (
-                                <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3">
+                                <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
                                     {error}
                                 </div>
                             )}
@@ -97,14 +97,14 @@ function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 text-rose-quartz dark:text-dark-text-secondary hover:text-gunmetal dark:hover:text-dark-text-primary transition-colors duration-200"
+                                className="px-4 py-2 text-rose-quartz dark:text-dark-text-secondary hover:text-emerald dark:hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-xl transition-colors duration-200"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={isLoading || !name.trim()}
-                                className="px-4 py-2 bg-emerald text-white rounded-lg hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald disabled:opacity-50 transition-all duration-200"
+                                className="px-4 py-2 text-emerald hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors duration-200"
                             >
                                 {isLoading ? (
                                     <span className="flex items-center space-x-2">
