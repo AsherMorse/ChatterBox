@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { searchUsers } from '../../services/api/userService';
-import { createDMConversation } from '../../services/api/dmService';
+import { searchUsers } from '../../../services/api/userService';
+import { createDMConversation } from '../../../services/api/dmService';
 
 function CreateDMModal({ isOpen, onClose, onDMCreated }) {
     const [searchQuery, setSearchQuery] = useState('');

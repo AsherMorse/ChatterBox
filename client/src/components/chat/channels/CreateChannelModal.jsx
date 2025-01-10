@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import { createChannel } from '../../services/api/channelService';
+import { createChannel } from '../../../services/api/channelService';
 
 function CreateChannelModal({ isOpen, onClose, onChannelCreated }) {
     const [name, setName] = useState('');

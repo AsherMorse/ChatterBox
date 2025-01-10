@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { getDMConversations } from '../../services/api/dmService';
-import { getUser } from '../../services/api/auth';
-import realtimeService from '../../services/realtime/realtimeService';
+import { getDMConversations } from '../../../services/api/dmService';
+import { getUser } from '../../../services/api/auth';
+import realtimeService from '../../../services/realtime/realtimeService';
 
 function DirectMessageList({ onDMSelect, selectedDMId }) {
     const [conversations, setConversations] = useState([]);

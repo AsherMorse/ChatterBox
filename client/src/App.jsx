@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Auth from './pages/Auth';
-import Chat from './components/chat/Chat';
+import Chat from './components/chat/core/Chat';
 import BrowseChannels from './pages/BrowseChannels';
 import { getUser } from './services/api/auth';
 import { initializeTheme } from './utils/theme';

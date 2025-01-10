@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import realtimeService from '../../services/realtime/realtimeService';
+import realtimeService from '../../../services/realtime/realtimeService';
 
 function DirectMessageHeader({ user: initialUser }) {
     const [user, setUser] = useState(initialUser);

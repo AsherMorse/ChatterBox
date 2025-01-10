@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import { getChannels } from '../../services/api/channelService';
-import realtimeService from '../../services/realtime/realtimeService';
-import { getUser } from '../../services/api/auth';
+import { getChannels } from '../../../services/api/channelService';
+import realtimeService from '../../../services/realtime/realtimeService';
+import { getUser } from '../../../services/api/auth';
 
 function ChannelList({ onChannelSelect, selectedChannelId, onCreateChannel }) {
     const [channels, setChannels] = useState([]);

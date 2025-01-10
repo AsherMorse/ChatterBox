@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import EmojiPicker from './EmojiPicker';
-import { addReaction, removeReaction, getMessageReactions } from '../../services/api/messageService';
-import { reactionEvents } from '../../services/realtime/realtimeService';
+import { addReaction, removeReaction, getMessageReactions } from '../../../services/api/messageService';
+import { reactionEvents } from '../../../services/realtime/realtimeService';
 
 function MessageReactions({ messageId, currentUserId }) {
     const [showPicker, setShowPicker] = useState(false);
