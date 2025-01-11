@@ -12,22 +12,17 @@ function EmojiPicker({ onSelect, onClose }) {
             if (!pickerRef.current) return;
             
             const rect = pickerRef.current.getBoundingClientRect();
-            const chatContainer = document.querySelector('.messages-container');
-            if (!chatContainer) return;
-            
-            const containerRect = chatContainer.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
             
-            // Check if picker would be cut off on the right
-            const rightOverflow = rect.right > containerRect.right;
-            // Check if picker would be cut off on the left
-            const leftOverflow = rect.left < containerRect.left;
-            // Check if picker would be cut off on the bottom
+            // Check if picker would be cut off at the bottom
             const bottomOverflow = rect.bottom > viewportHeight;
-
+            // Check if picker would be cut off on the right
+            const rightOverflow = rect.right > (viewportWidth - 20); // 20px safety margin
+            
             setPosition({
                 top: !bottomOverflow,
-                right: !rightOverflow && !leftOverflow // Keep right alignment unless it would overflow on either side
+                right: rightOverflow // If it would overflow right, show on left side
             });
         }
 
@@ -59,9 +54,11 @@ function EmojiPicker({ onSelect, onClose }) {
         <div 
             ref={pickerRef}
             role="dialog"
-            className={`absolute ${position.top ? 'top-full' : 'bottom-full'} ${position.right ? 'right-0' : 'left-0'} 
-                ${position.top ? 'mt-1' : 'mb-1'} bg-white dark:bg-dark-bg-secondary border border-powder-blue 
-                dark:border-dark-border rounded-lg shadow-lg p-1 z-50`}
+            className={`absolute ${position.top ? 'top-1/2' : 'bottom-1/2'} 
+                ${position.right ? 'right-full mr-2' : 'left-full ml-2'}
+                -translate-y-1/2 bg-white dark:bg-dark-bg-secondary border border-powder-blue 
+                dark:border-dark-border rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(0,0,0,0.3)]
+                p-2 z-50 min-w-[180px]`}
             onClick={(e) => e.stopPropagation()}
             onMouseEnter={(e) => {
                 e.stopPropagation();
@@ -79,7 +76,7 @@ function EmojiPicker({ onSelect, onClose }) {
                             onSelect(emoji);
                             onClose();
                         }}
-                        className="w-7 h-7 flex items-center justify-center hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded transition-colors duration-200"
+                        className="w-8 h-8 flex items-center justify-center hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 text-base"
                     >
                         {emoji}
                     </button>

@@ -129,6 +129,7 @@ CREATE TABLE messages (
     dm_id UUID REFERENCES direct_messages(dm_id) ON DELETE CASCADE,
     parent_id UUID REFERENCES messages(id) ON DELETE CASCADE,
     is_edited BOOLEAN DEFAULT false,
+    is_thread_reply BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CHECK (
@@ -233,6 +234,57 @@ CREATE TRIGGER update_files_updated_at
     BEFORE UPDATE ON files
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Add reply count function and trigger
+CREATE OR REPLACE FUNCTION update_message_reply_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- If this is a thread reply being added
+    IF TG_OP = 'INSERT' AND NEW.parent_id IS NOT NULL THEN
+        -- Update the parent message's reply count
+        UPDATE messages 
+        SET reply_count = (
+            SELECT COUNT(*) 
+            FROM messages 
+            WHERE parent_id = NEW.parent_id
+        )
+        WHERE id = NEW.parent_id;
+    -- If this is a thread reply being deleted
+    ELSIF TG_OP = 'DELETE' AND OLD.parent_id IS NOT NULL THEN
+        -- Update the parent message's reply count
+        UPDATE messages 
+        SET reply_count = (
+            SELECT COUNT(*) 
+            FROM messages 
+            WHERE parent_id = OLD.parent_id
+        )
+        WHERE id = OLD.parent_id;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add reply_count column to messages
+ALTER TABLE messages ADD COLUMN reply_count INTEGER DEFAULT 0;
+
+-- Create trigger for reply count updates
+CREATE TRIGGER update_message_reply_count
+    AFTER INSERT OR DELETE ON messages
+    FOR EACH ROW
+    EXECUTE FUNCTION update_message_reply_count();
+
+-- Initialize reply counts for existing messages
+UPDATE messages m
+SET reply_count = (
+    SELECT COUNT(*)
+    FROM messages
+    WHERE parent_id = m.id
+)
+WHERE id IN (
+    SELECT DISTINCT parent_id
+    FROM messages
+    WHERE parent_id IS NOT NULL
+);
 
 -- Setup realtime configuration
 DO $$

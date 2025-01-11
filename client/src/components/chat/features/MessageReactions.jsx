@@ -15,9 +15,7 @@ function MessageReactions({ messageId, currentUserId }) {
 
     const loadReactions = useCallback(async () => {
         try {
-            console.log('Loading reactions for message:', messageId);
             const reactionData = await getMessageReactions(messageId);
-            console.log('Loaded reactions:', reactionData);
             setReactions(reactionData);
             setRemovingReactions(new Set());
         } catch (error) {

@@ -92,6 +92,7 @@ router.get('/channel/:channelId', authenticateJWT, async (req, res) => {
                 )
             `)
             .eq('channel_id', channelId)
+            .eq('is_thread_reply', false)
             .order('created_at', { ascending: true })
             .limit(limit);
 
@@ -146,6 +147,7 @@ router.get('/dm/:dmId', authenticateJWT, async (req, res) => {
                 )
             `)
             .eq('dm_id', dmId)
+            .eq('is_thread_reply', false)
             .order('created_at', { ascending: true })
             .limit(limit);
 
@@ -182,6 +184,20 @@ router.post('/:messageId/reactions', authenticateJWT, async (req, res) => {
         const { emoji } = req.body;
         const userId = req.user.id;
 
+        // Check if reaction already exists
+        const { data: existingReaction } = await supabase
+            .from('message_reactions')
+            .select()
+            .eq('message_id', messageId)
+            .eq('user_id', userId)
+            .eq('emoji', emoji)
+            .single();
+
+        if (existingReaction) {
+            return res.status(400).json({ message: 'Reaction already exists' });
+        }
+
+        // Add the reaction
         const { error: insertError } = await supabase
             .from('message_reactions')
             .insert({
@@ -190,28 +206,32 @@ router.post('/:messageId/reactions', authenticateJWT, async (req, res) => {
                 emoji
             });
 
-        if (insertError) {
-            console.error('Error inserting reaction:', insertError);
-            return res.status(500).json({ message: 'Error inserting reaction' });
-        }
+        if (insertError) throw insertError;
 
-        // Get updated reaction count for this emoji
-        const { data: reactions, error: countError } = await supabase
+        // Get updated reactions with user info
+        const { data: reactions, error: selectError } = await supabase
             .from('message_reactions')
-            .select('emoji, user_id')
+            .select(`
+                emoji,
+                users:user_id (
+                    id,
+                    username,
+                    avatar_url
+                )
+            `)
             .eq('message_id', messageId)
             .eq('emoji', emoji);
 
-        if (countError) {
-            console.error('Error getting reaction count:', countError);
-            return res.status(500).json({ message: 'Error getting reaction count' });
-        }
+        if (selectError) throw selectError;
 
-        return res.status(201).json({ 
-            message: 'Reaction added successfully',
+        // Format the response
+        const formattedReaction = {
+            emoji,
             count: reactions.length,
-            users: reactions.map(r => r.user_id)
-        });
+            users: reactions.map(r => r.users)
+        };
+
+        return res.status(201).json(formattedReaction);
     } catch (error) {
         console.error('Reaction error:', error);
         return res.status(500).json({ message: 'Internal server error' });
@@ -232,30 +252,34 @@ router.delete('/:messageId/reactions', authenticateJWT, async (req, res) => {
             .eq('user_id', userId)
             .eq('emoji', emoji);
 
-        if (deleteError) {
-            console.error('Error removing reaction:', deleteError);
-            return res.status(500).json({ message: 'Error removing reaction' });
-        }
+        if (deleteError) throw deleteError;
 
-        // Get updated reaction count for this emoji
-        const { data: reactions, error: countError } = await supabase
+        // Get updated reactions with user info
+        const { data: reactions, error: selectError } = await supabase
             .from('message_reactions')
-            .select('emoji, user_id')
+            .select(`
+                emoji,
+                users:user_id (
+                    id,
+                    username,
+                    avatar_url
+                )
+            `)
             .eq('message_id', messageId)
             .eq('emoji', emoji);
 
-        if (countError) {
-            console.error('Error getting reaction count:', countError);
-            return res.status(500).json({ message: 'Error getting reaction count' });
-        }
+        if (selectError) throw selectError;
 
-        return res.status(200).json({ 
-            message: 'Reaction removed successfully',
+        // Format the response
+        const formattedReaction = {
+            emoji,
             count: reactions.length,
-            users: reactions.map(r => r.user_id)
-        });
+            users: reactions.map(r => r.users)
+        };
+
+        return res.status(200).json(formattedReaction);
     } catch (error) {
-        console.error('Reaction removal error:', error);
+        console.error('Error removing reaction:', error);
         return res.status(500).json({ message: 'Internal server error' });
     }
 });
@@ -422,6 +446,137 @@ router.post('/attachments', authenticateJWT, async (req, res) => {
     } catch (err) {
         console.error('Error in /messages/attachments route:', err);
         return res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+// Get thread messages for a parent message
+router.get('/:messageId/thread', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+
+        // First verify the parent message exists
+        const { data: parentMessage, error: parentError } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('id', messageId)
+            .single();
+
+        if (parentError || !parentMessage) {
+            console.error('Error fetching parent message:', parentError);
+            return res.status(500).json({ message: 'Error fetching parent message' });
+        }
+
+        // Get all thread messages
+        const { data: messages, error } = await supabase
+            .from('messages')
+            .select(`
+                *,
+                sender:sender_id(id, username, avatar_url),
+                file_attachments(
+                    id,
+                    message_id,
+                    uploader_id,
+                    file:files!file_attachments_file_id_fkey (
+                        id,
+                        name,
+                        type,
+                        size,
+                        url
+                    )
+                )
+            `)
+            .eq('parent_id', messageId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching thread messages:', error);
+            return res.status(500).json({ message: 'Error fetching thread messages' });
+        }
+
+        // Transform file attachments to match expected client structure
+        const transformedMessages = messages.map(message => ({
+            ...message,
+            file_attachments: message.file_attachments.map(attachment => ({
+                id: attachment.id,
+                message_id: attachment.message_id,
+                uploader_id: attachment.uploader_id,
+                file_name: attachment.file.name,
+                file_type: attachment.file.type,
+                file_size: attachment.file.size,
+                file_url: attachment.file.url
+            }))
+        }));
+
+        res.json(transformedMessages);
+    } catch (error) {
+        console.error('Error in thread message retrieval:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Create a thread reply
+router.post('/:messageId/thread', authenticateJWT, async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { content } = req.body;
+        const sender_id = req.user.id;
+
+        // First verify the parent message exists
+        const { data: parentMessage, error: parentError } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('id', messageId)
+            .single();
+
+        if (parentError || !parentMessage) {
+            console.error('Error fetching parent message:', parentError);
+            return res.status(500).json({ message: 'Error fetching parent message' });
+        }
+
+        // Get the sender information
+        const { data: sender, error: senderError } = await supabase
+            .from('users')
+            .select('id, username, avatar_url')
+            .eq('id', sender_id)
+            .single();
+
+        if (senderError) {
+            console.error('Error fetching sender:', senderError);
+            return res.status(500).json({ message: 'Error fetching sender information' });
+        }
+
+        // Create the thread reply
+        const { data: message, error: messageError } = await supabase
+            .from('messages')
+            .insert({
+                content,
+                sender_id,
+                parent_id: messageId,
+                channel_id: parentMessage.channel_id,
+                dm_id: parentMessage.dm_id,
+                is_thread_reply: true
+            })
+            .select(`
+                *,
+                sender:sender_id(id, username, avatar_url)
+            `)
+            .single();
+
+        if (messageError) {
+            console.error('Error creating thread reply:', messageError);
+            return res.status(500).json({ message: 'Error creating thread reply' });
+        }
+
+        // Format the response
+        const formattedMessage = {
+            ...message,
+            sender: sender
+        };
+
+        res.status(201).json(formattedMessage);
+    } catch (error) {
+        console.error('Error in thread reply creation:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 

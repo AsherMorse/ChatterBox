@@ -19,6 +19,7 @@ import FileAttachment from '../files/FileAttachment';
 import { uploadFile, createFileAttachment } from '../../../services/api/fileService';
 import UserStatusEditor from '../../sidebar/UserStatusEditor';
 import SearchBar from '../features/SearchBar';
+import ThreadSidebar from '../features/ThreadSidebar';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -33,7 +34,9 @@ function Chat({ onLogout }) {
     const [isUploading, setIsUploading] = useState(false);
     const [stagedFiles, setStagedFiles] = useState([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
     const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const typingChannelRef = useRef(null);
     const currentMessagesRef = useRef(messages);
@@ -45,6 +48,8 @@ function Chat({ onLogout }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const messageRefs = useRef({});
+    const [isThreadOpen, setIsThreadOpen] = useState(false);
+    const [activeThreadMessage, setActiveThreadMessage] = useState(null);
 
     // Initialize sidebar state based on screen size
     useEffect(() => {
@@ -67,8 +72,20 @@ function Chat({ onLogout }) {
         currentMessagesRef.current = messages;
     }, [messages]);
 
+    // Add scroll handler to detect when user scrolls up
+    const handleScroll = () => {
+        if (messagesContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+            setShouldAutoScroll(isNearBottom);
+        }
+    };
+
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            setShouldAutoScroll(true);
+        }
     };
 
     useEffect(() => {
@@ -242,14 +259,9 @@ function Chat({ onLogout }) {
                 setMessages(prev => prev.filter(msg => msg.id !== event.messageId));
                 break;
             case 'reaction_change':
-                console.log('Handling reaction change for message:', event.messageId);
-                console.log('Current messages:', currentMessagesRef.current);
                 const targetMessage = currentMessagesRef.current.find(msg => msg.id === event.messageId);
-                console.log('Found target message:', targetMessage);
                 if (targetMessage) {
-                    console.log('Found message, triggering reaction refresh');
-                } else {
-                    console.log('Message not found in current conversation');
+                    reactionEvents.emit(event.messageId);
                 }
                 break;
         }
@@ -451,22 +463,23 @@ function Chat({ onLogout }) {
     const renderTypingIndicator = () => {
         // Always render the container, but conditionally render the content
         return (
-            <div className="absolute -top-10 left-0 right-0 z-0">
-                <div className="relative h-8 overflow-visible px-6">
+            <div className="absolute left-1/2 -translate-x-1/2 -top-10 z-0">
+                <div className="relative h-8 overflow-visible">
                     {(isTypingVisible !== 'hidden' && typingUsers.length > 0) && (
                         <div className={`
-                            absolute bottom-0 inline-flex items-center gap-2 px-3 py-1.5 
+                            inline-flex items-center gap-2 px-3 py-1.5 
                             bg-[#F8FAFD] dark:bg-dark-bg-secondary 
                             border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
                             ${isTypingVisible === 'entering' ? 'animate-typing-slide-up' : ''}
                             ${isTypingVisible === 'exiting' ? 'animate-typing-slide-down' : ''}
+                            whitespace-nowrap
                         `}>
                             <div className="flex space-x-1">
                                 <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                                 <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                                 <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
                             </div>
-                            <span className="text-sm text-[#272D2D] dark:text-dark-text-primary whitespace-nowrap">
+                            <span className="text-sm text-[#272D2D] dark:text-dark-text-primary">
                                 {getTypingText()}
                             </span>
                         </div>
@@ -527,6 +540,17 @@ function Chat({ onLogout }) {
                 messageElement.classList.remove('bg-emerald/10');
             }, 2000);
         }
+    };
+
+    // Add handleThreadReply function
+    const handleThreadReply = (message) => {
+        setActiveThreadMessage(message);
+        setIsThreadOpen(true);
+    };
+
+    const handleCloseThread = () => {
+        setIsThreadOpen(false);
+        setActiveThreadMessage(null);
     };
 
     return (
@@ -626,7 +650,11 @@ function Chat({ onLogout }) {
                     )}
 
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto px-6 py-4">
+                    <div 
+                        ref={messagesContainerRef}
+                        onScroll={handleScroll}
+                        className="flex-1 overflow-y-auto px-6 py-4 relative"
+                    >
                         {/* Messages */}
                         <div className="space-y-0">
                             {messages.map((message, index) => {
@@ -643,20 +671,27 @@ function Chat({ onLogout }) {
                                             py-0.5 px-3 transition-all duration-200
                                         `}
                                     >
-                                        <div className="w-9 flex-shrink-0">
+                                        <div className="w-9 flex-shrink-0 relative h-0">
                                             {isFirstInGroup && (
-                                                <div className="w-9 h-9 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
+                                                <div className="w-9 h-9 absolute">
                                                     {message.sender?.avatar_url ? (
                                                         <img
                                                             src={message.sender.avatar_url}
                                                             alt={message.sender.username}
-                                                            className="w-full h-full object-cover"
+                                                            className="w-full h-full object-cover rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden"
                                                         />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                                                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
                                                             {message.sender?.username?.[0]?.toUpperCase() || '?'}
                                                         </div>
                                                     )}
+                                                </div>
+                                            )}
+                                            {!isFirstInGroup && message.reply_count > 0 && (
+                                                <div className="absolute top-[0.15rem] w-9 flex items-center justify-center">
+                                                    <svg className="w-4 h-4 text-rose-quartz dark:text-dark-text-secondary opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.174 0-2.3-.183-3.352-.518L3 21l1.424-4.272C3.515 15.293 3 13.693 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                    </svg>
                                                 </div>
                                             )}
                                         </div>
@@ -666,27 +701,57 @@ function Chat({ onLogout }) {
                                                     <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
                                                         {message.sender?.username || 'Unknown User'}
                                                     </span>
-                                                    <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
-                                                        {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </span>
+                                                    <div className="flex items-center gap-1 text-xs text-rose-quartz dark:text-dark-text-secondary">
+                                                        <span>
+                                                            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                        {message.reply_count > 0 && (
+                                                            <>
+                                                                <span className="opacity-40">•</span>
+                                                                <svg className="w-3.5 h-3.5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.174 0-2.3-.183-3.352-.518L3 21l1.424-4.272C3.515 15.293 3 13.693 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                                </svg>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                             <div className="flex flex-col">
-                                                <div className="flex items-center gap-2 group -mt-0.5">
-                                                    <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
+                                                <div className="flex items-start gap-2 group -mt-0.5">
+                                                    <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary mt-0.5">
                                                         {message.content}
                                                     </div>
-                                                    {/* Only show reactions for text messages */}
-                                                    {(!message.file_attachments || message.file_attachments.length === 0) && (
-                                                        <div className="flex-shrink-0">
-                                                            <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
-                                                                <MessageReactions 
-                                                                    messageId={message.id}
-                                                                    currentUserId={currentUser.id}
-                                                                />
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        {/* Only show reactions for text messages */}
+                                                        {(!message.file_attachments || message.file_attachments.length === 0) && (
+                                                            <div className="flex-shrink-0">
+                                                                <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
+                                                                    <MessageReactions 
+                                                                        messageId={message.id}
+                                                                        currentUserId={currentUser.id}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                        {/* Reply in Thread button */}
+                                                        <button
+                                                            className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                                                            onClick={() => handleThreadReply(message)}
+                                                            title="Reply in Thread"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                            </svg>
+                                                            {message.reply_count > 0 && (
+                                                                <>
+                                                                    <span className="opacity-40 text-xs">•</span>
+                                                                    <span className="text-xs">
+                                                                        {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 {/* Render file attachments */}
                                                 {message.file_attachments && message.file_attachments.length > 0 && (
@@ -718,6 +783,28 @@ function Chat({ onLogout }) {
                     {/* Message Input Container */}
                     <div className="relative">
                         {renderTypingIndicator()}
+                        
+                        {/* Scroll to bottom button */}
+                        {!shouldAutoScroll && (
+                            <div className="absolute right-8 -top-14 z-10">
+                                <button
+                                    onClick={() => {
+                                        setShouldAutoScroll(true);
+                                        scrollToBottom();
+                                    }}
+                                    className="p-2 
+                                        bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                                        border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                                        text-rose-quartz dark:text-dark-text-secondary
+                                        hover:text-emerald dark:hover:text-emerald
+                                        hover:bg-white dark:hover:bg-dark-bg-primary transition-colors duration-200"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
                         
                         {/* Message Input */}
                         <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10">
@@ -810,6 +897,13 @@ function Chat({ onLogout }) {
                 isOpen={isCreateDMModalOpen}
                 onClose={() => setIsCreateDMModalOpen(false)}
                 onDMCreated={handleCreateDM}
+            />
+
+            {/* Add ThreadSidebar */}
+            <ThreadSidebar 
+                isOpen={isThreadOpen}
+                onClose={handleCloseThread}
+                parentMessage={activeThreadMessage}
             />
         </div>
     );
