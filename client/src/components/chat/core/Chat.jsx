@@ -19,6 +19,7 @@ import FileAttachment from '../files/FileAttachment';
 import { uploadFile, createFileAttachment } from '../../../services/api/fileService';
 import UserStatusEditor from '../../sidebar/UserStatusEditor';
 import SearchBar from '../features/SearchBar';
+import ThreadSidebar from '../features/ThreadSidebar';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -45,6 +46,7 @@ function Chat({ onLogout }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const messageRefs = useRef({});
+    const [isThreadOpen, setIsThreadOpen] = useState(false);
 
     // Initialize sidebar state based on screen size
     useEffect(() => {
@@ -530,6 +532,11 @@ function Chat({ onLogout }) {
         }
     };
 
+    // Add handleThreadReply function
+    const handleThreadReply = () => {
+        setIsThreadOpen(true);
+    };
+
     return (
         <div className="min-h-screen bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
             <Header 
@@ -677,7 +684,7 @@ function Chat({ onLogout }) {
                                                     <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
                                                         {message.content}
                                                     </div>
-                                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center gap-2">
                                                         {/* Only show reactions for text messages */}
                                                         {(!message.file_attachments || message.file_attachments.length === 0) && (
                                                             <div className="flex-shrink-0">
@@ -691,8 +698,8 @@ function Chat({ onLogout }) {
                                                         )}
                                                         {/* Reply in Thread button */}
                                                         <button
-                                                            className="p-1.5 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200"
-                                                            onClick={() => {/* TODO: Implement thread reply */}}
+                                                            className="p-1.5 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                                                            onClick={handleThreadReply}
                                                             title="Reply in Thread"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -823,6 +830,12 @@ function Chat({ onLogout }) {
                 isOpen={isCreateDMModalOpen}
                 onClose={() => setIsCreateDMModalOpen(false)}
                 onDMCreated={handleCreateDM}
+            />
+
+            {/* Add ThreadSidebar */}
+            <ThreadSidebar 
+                isOpen={isThreadOpen}
+                onClose={() => setIsThreadOpen(false)}
             />
         </div>
     );
