@@ -34,7 +34,9 @@ function Chat({ onLogout }) {
     const [isUploading, setIsUploading] = useState(false);
     const [stagedFiles, setStagedFiles] = useState([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
     const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const typingChannelRef = useRef(null);
     const currentMessagesRef = useRef(messages);
@@ -70,8 +72,20 @@ function Chat({ onLogout }) {
         currentMessagesRef.current = messages;
     }, [messages]);
 
+    // Add scroll handler to detect when user scrolls up
+    const handleScroll = () => {
+        if (messagesContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+            setShouldAutoScroll(isNearBottom);
+        }
+    };
+
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            setShouldAutoScroll(true);
+        }
     };
 
     useEffect(() => {
@@ -245,14 +259,9 @@ function Chat({ onLogout }) {
                 setMessages(prev => prev.filter(msg => msg.id !== event.messageId));
                 break;
             case 'reaction_change':
-                console.log('Handling reaction change for message:', event.messageId);
-                console.log('Current messages:', currentMessagesRef.current);
                 const targetMessage = currentMessagesRef.current.find(msg => msg.id === event.messageId);
-                console.log('Found target message:', targetMessage);
                 if (targetMessage) {
-                    console.log('Found message, triggering reaction refresh');
-                } else {
-                    console.log('Message not found in current conversation');
+                    reactionEvents.emit(event.messageId);
                 }
                 break;
         }
@@ -641,7 +650,11 @@ function Chat({ onLogout }) {
                     )}
 
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto px-6 py-4">
+                    <div 
+                        ref={messagesContainerRef}
+                        onScroll={handleScroll}
+                        className="flex-1 overflow-y-auto px-6 py-4 relative"
+                    >
                         {/* Messages */}
                         <div className="space-y-0">
                             {messages.map((message, index) => {
@@ -675,7 +688,7 @@ function Chat({ onLogout }) {
                                                 </div>
                                             )}
                                             {!isFirstInGroup && message.reply_count > 0 && (
-                                                <div className="absolute top-[0.5rem] w-9 flex items-center justify-center">
+                                                <div className="absolute top-[0.15rem] w-9 flex items-center justify-center">
                                                     <svg className="w-4 h-4 text-rose-quartz dark:text-dark-text-secondary opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.174 0-2.3-.183-3.352-.518L3 21l1.424-4.272C3.515 15.293 3 13.693 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                                     </svg>
@@ -704,11 +717,11 @@ function Chat({ onLogout }) {
                                                 </div>
                                             )}
                                             <div className="flex flex-col">
-                                                <div className="flex items-center gap-2 group -mt-0.5">
-                                                    <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
+                                                <div className="flex items-start gap-2 group -mt-0.5">
+                                                    <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary mt-0.5">
                                                         {message.content}
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 mt-0.5">
                                                         {/* Only show reactions for text messages */}
                                                         {(!message.file_attachments || message.file_attachments.length === 0) && (
                                                             <div className="flex-shrink-0">
@@ -722,16 +735,16 @@ function Chat({ onLogout }) {
                                                         )}
                                                         {/* Reply in Thread button */}
                                                         <button
-                                                            className="flex items-center gap-1.5 p-1.5 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                                                            className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
                                                             onClick={() => handleThreadReply(message)}
                                                             title="Reply in Thread"
                                                         >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                                                             </svg>
                                                             {message.reply_count > 0 && (
                                                                 <>
-                                                                    <span className="opacity-40">•</span>
+                                                                    <span className="opacity-40 text-xs">•</span>
                                                                     <span className="text-xs">
                                                                         {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
                                                                     </span>
@@ -770,6 +783,28 @@ function Chat({ onLogout }) {
                     {/* Message Input Container */}
                     <div className="relative">
                         {renderTypingIndicator()}
+                        
+                        {/* Scroll to bottom button */}
+                        {!shouldAutoScroll && (
+                            <div className="absolute right-8 -top-14 z-10">
+                                <button
+                                    onClick={() => {
+                                        setShouldAutoScroll(true);
+                                        scrollToBottom();
+                                    }}
+                                    className="p-2 
+                                        bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                                        border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                                        text-rose-quartz dark:text-dark-text-secondary
+                                        hover:text-emerald dark:hover:text-emerald
+                                        hover:bg-white dark:hover:bg-dark-bg-primary transition-colors duration-200"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
                         
                         {/* Message Input */}
                         <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10">

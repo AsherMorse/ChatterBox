@@ -1,25 +1,99 @@
 import PropTypes from 'prop-types';
-import { useState, useEffect } from 'react';
-import { getThreadMessages, sendThreadReply } from '../../../services/api/messageService';
+import { useState, useEffect, useRef } from 'react';
+import { getThreadMessages, sendThreadReply, getMessageSender } from '../../../services/api/messageService';
+import realtimeService from '../../../services/realtime/realtimeService';
 
 function ThreadSidebar({ isOpen, onClose, parentMessage }) {
     const [replyMessage, setReplyMessage] = useState('');
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+    const messagesContainerRef = useRef(null);
+
+    // Add scroll handler to detect when user scrolls up
+    const handleScroll = () => {
+        if (messagesContainerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+            setShouldAutoScroll(isNearBottom);
+        }
+    };
+
+    const scrollToBottom = () => {
+        if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTo({
+                top: messagesContainerRef.current.scrollHeight,
+                behavior: 'smooth'
+            });
+            setShouldAutoScroll(true);
+        }
+    };
 
     useEffect(() => {
         if (isOpen && parentMessage) {
             loadThreadMessages();
+
+            // Subscribe to realtime updates
+            const channel = realtimeService.subscribeToThread(parentMessage.id, handleRealtimeMessage);
+
+            return () => {
+                realtimeService.unsubscribeFromThread(parentMessage.id);
+            };
         }
     }, [isOpen, parentMessage]);
+
+    // Clear messages when parent message changes
+    useEffect(() => {
+        setMessages([]);
+        setShouldAutoScroll(true);
+    }, [parentMessage?.id]);
+
+    // Add effect to scroll to bottom when messages change
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const handleRealtimeMessage = async (event) => {
+        switch (event.type) {
+            case 'new_message':
+                let messageWithSender = event.message;
+                if (!event.message.sender) {
+                    const sender = await getMessageSender(event.message.sender_id);
+                    messageWithSender = { ...event.message, sender };
+                }
+                // Only add the message if it's not already in the list
+                setMessages(prev => {
+                    if (prev.some(msg => msg.id === messageWithSender.id)) {
+                        return prev;
+                    }
+                    return [...prev, messageWithSender];
+                });
+                break;
+            case 'message_deleted':
+                setMessages(prev => prev.filter(msg => msg.id !== event.messageId));
+                break;
+            case 'message_updated':
+                setMessages(prev => prev.map(msg =>
+                    msg.id === event.message.id ? { ...msg, ...event.message } : msg
+                ));
+                break;
+        }
+    };
 
     const loadThreadMessages = async () => {
         try {
             setIsLoading(true);
             setError(null);
             const threadMessages = await getThreadMessages(parentMessage.id);
-            setMessages([parentMessage, ...threadMessages]);
+            // Ensure we don't add duplicates when setting initial messages
+            const uniqueMessages = [parentMessage];
+            threadMessages.forEach(msg => {
+                if (!uniqueMessages.some(m => m.id === msg.id)) {
+                    uniqueMessages.push(msg);
+                }
+            });
+            setMessages(uniqueMessages);
         } catch (err) {
             console.error('Error loading thread messages:', err);
             setError('Failed to load thread messages');
@@ -74,7 +148,11 @@ function ThreadSidebar({ isOpen, onClose, parentMessage }) {
             {/* Content Area */}
             <div className="h-[calc(100%-4rem)] flex flex-col">
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div 
+                    ref={messagesContainerRef}
+                    onScroll={handleScroll}
+                    className="flex-1 overflow-y-auto p-6 relative"
+                >
                     {error && (
                         <div className="text-red-500 dark:text-red-400 text-sm mb-4 text-center">
                             {error}
@@ -122,8 +200,30 @@ function ThreadSidebar({ isOpen, onClose, parentMessage }) {
                     </div>
                 </div>
 
-                {/* Input Area */}
-                <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10 rounded-b-2xl">
+                {/* Message Input */}
+                <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10">
+                    {/* Scroll to bottom button */}
+                    {!shouldAutoScroll && (
+                        <div className="absolute right-8 -top-14 z-10">
+                            <button
+                                onClick={() => {
+                                    setShouldAutoScroll(true);
+                                    scrollToBottom();
+                                }}
+                                className="p-2 
+                                    bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                                    border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                                    text-rose-quartz dark:text-dark-text-secondary
+                                    hover:text-emerald dark:hover:text-emerald
+                                    hover:bg-white dark:hover:bg-dark-bg-primary transition-colors duration-200"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                            </button>
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="flex items-center gap-3">
                         <div className="flex-1 relative">
                             <input

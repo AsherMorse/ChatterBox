@@ -913,6 +913,41 @@ class RealtimeService {
             console.error('Error in fetchInitialPresenceStatus:', error);
         }
     }
+
+    subscribeToThread(messageId, onMessage) {
+        const channel = supabase.channel(`thread:${messageId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `parent_id=eq.${messageId}`
+                },
+                (payload) => {
+                    let event = {
+                        type: payload.eventType === 'INSERT' ? 'new_message' :
+                              payload.eventType === 'DELETE' ? 'message_deleted' :
+                              'message_updated',
+                        message: payload.new,
+                        messageId: payload.old?.id
+                    };
+                    onMessage(event);
+                }
+            )
+            .subscribe();
+
+        this.channels.set(`thread:${messageId}`, channel);
+        return channel;
+    }
+
+    unsubscribeFromThread(messageId) {
+        const channel = this.channels.get(`thread:${messageId}`);
+        if (channel) {
+            channel.unsubscribe();
+            this.channels.delete(`thread:${messageId}`);
+        }
+    }
 }
 
 const realtimeService = new RealtimeService();
