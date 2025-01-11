@@ -47,6 +47,7 @@ function Chat({ onLogout }) {
     const [searchResults, setSearchResults] = useState([]);
     const messageRefs = useRef({});
     const [isThreadOpen, setIsThreadOpen] = useState(false);
+    const [activeThreadMessage, setActiveThreadMessage] = useState(null);
 
     // Initialize sidebar state based on screen size
     useEffect(() => {
@@ -533,8 +534,14 @@ function Chat({ onLogout }) {
     };
 
     // Add handleThreadReply function
-    const handleThreadReply = () => {
+    const handleThreadReply = (message) => {
+        setActiveThreadMessage(message);
         setIsThreadOpen(true);
+    };
+
+    const handleCloseThread = () => {
+        setIsThreadOpen(false);
+        setActiveThreadMessage(null);
     };
 
     return (
@@ -699,7 +706,7 @@ function Chat({ onLogout }) {
                                                         {/* Reply in Thread button */}
                                                         <button
                                                             className="p-1.5 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
-                                                            onClick={handleThreadReply}
+                                                            onClick={() => handleThreadReply(message)}
                                                             title="Reply in Thread"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -835,7 +842,8 @@ function Chat({ onLogout }) {
             {/* Add ThreadSidebar */}
             <ThreadSidebar 
                 isOpen={isThreadOpen}
-                onClose={() => setIsThreadOpen(false)}
+                onClose={handleCloseThread}
+                parentMessage={activeThreadMessage}
             />
         </div>
     );

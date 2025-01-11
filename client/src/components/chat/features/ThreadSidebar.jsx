@@ -1,48 +1,48 @@
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getThreadMessages, sendThreadReply } from '../../../services/api/messageService';
 
-function ThreadSidebar({ isOpen, onClose }) {
+function ThreadSidebar({ isOpen, onClose, parentMessage }) {
     const [replyMessage, setReplyMessage] = useState('');
+    const [messages, setMessages] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Example messages
-    const exampleMessages = [
-        {
-            id: 1,
-            content: "This is the parent message that started the thread. It could be a longer message that wraps to multiple lines to show how that looks.",
-            created_at: "2024-01-20T10:30:00Z",
-            sender: {
-                id: "1",
-                username: "Sarah Chen",
-                avatar_url: null
-            }
-        },
-        {
-            id: 2,
-            content: "Good point! Let's discuss this further.",
-            created_at: "2024-01-20T10:35:00Z",
-            sender: {
-                id: "2",
-                username: "Alex Kim",
-                avatar_url: null
-            }
-        },
-        {
-            id: 3,
-            content: "I agree with Alex. We should consider the implications.",
-            created_at: "2024-01-20T10:40:00Z",
-            sender: {
-                id: "3",
-                username: "Jordan Lee",
-                avatar_url: null
-            }
+    useEffect(() => {
+        if (isOpen && parentMessage) {
+            loadThreadMessages();
         }
-    ];
+    }, [isOpen, parentMessage]);
 
-    const handleSubmit = (e) => {
+    const loadThreadMessages = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const threadMessages = await getThreadMessages(parentMessage.id);
+            setMessages([parentMessage, ...threadMessages]);
+        } catch (err) {
+            console.error('Error loading thread messages:', err);
+            setError('Failed to load thread messages');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!replyMessage.trim()) return;
-        // TODO: Handle reply submission
-        setReplyMessage('');
+        if (!replyMessage.trim() || !parentMessage) return;
+
+        try {
+            setIsLoading(true);
+            const newReply = await sendThreadReply(parentMessage.id, replyMessage.trim());
+            setMessages(prev => [...prev, newReply]);
+            setReplyMessage('');
+        } catch (err) {
+            console.error('Error sending reply:', err);
+            setError('Failed to send reply');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -75,8 +75,13 @@ function ThreadSidebar({ isOpen, onClose }) {
             <div className="h-[calc(100%-4rem)] flex flex-col">
                 {/* Messages Area */}
                 <div className="flex-1 overflow-y-auto p-6">
+                    {error && (
+                        <div className="text-red-500 dark:text-red-400 text-sm mb-4 text-center">
+                            {error}
+                        </div>
+                    )}
                     <div className="space-y-6">
-                        {exampleMessages.map((message, index) => (
+                        {messages.map((message, index) => (
                             <div key={message.id} className={`flex gap-3 group ${index === 0 ? 'p-4 bg-alice-blue dark:bg-dark-bg-primary border border-powder-blue dark:border-dark-border rounded-xl' : ''}`}>
                                 {/* Avatar */}
                                 <div className="w-8 h-8 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden flex-shrink-0">
@@ -106,9 +111,9 @@ function ThreadSidebar({ isOpen, onClose }) {
                                     <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
                                         {message.content}
                                     </div>
-                                    {index === 0 && (
+                                    {index === 0 && messages.length > 1 && (
                                         <div className="mt-2 text-xs text-rose-quartz dark:text-dark-text-secondary">
-                                            {exampleMessages.length - 1} replies
+                                            {messages.length - 1} {messages.length === 2 ? 'reply' : 'replies'}
                                         </div>
                                     )}
                                 </div>
@@ -127,11 +132,12 @@ function ThreadSidebar({ isOpen, onClose }) {
                                 onChange={(e) => setReplyMessage(e.target.value)}
                                 placeholder="Reply in thread..."
                                 className="w-full px-4 py-2.5 rounded-xl border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary dark:text-dark-text-primary focus:outline-none"
+                                disabled={isLoading}
                             />
                             <div className="absolute right-2 top-1/2 -translate-y-1/2">
                                 <button
                                     type="submit"
-                                    disabled={!replyMessage.trim()}
+                                    disabled={!replyMessage.trim() || isLoading}
                                     className="p-2 text-emerald hover:text-emerald-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,7 +155,17 @@ function ThreadSidebar({ isOpen, onClose }) {
 
 ThreadSidebar.propTypes = {
     isOpen: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired,
+    parentMessage: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        content: PropTypes.string.isRequired,
+        created_at: PropTypes.string.isRequired,
+        sender: PropTypes.shape({
+            id: PropTypes.string.isRequired,
+            username: PropTypes.string.isRequired,
+            avatar_url: PropTypes.string
+        }).isRequired
+    })
 };
 
 export default ThreadSidebar; 

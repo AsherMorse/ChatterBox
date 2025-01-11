@@ -129,6 +129,7 @@ CREATE TABLE messages (
     dm_id UUID REFERENCES direct_messages(dm_id) ON DELETE CASCADE,
     parent_id UUID REFERENCES messages(id) ON DELETE CASCADE,
     is_edited BOOLEAN DEFAULT false,
+    is_thread_reply BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CHECK (

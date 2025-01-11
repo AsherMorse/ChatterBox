@@ -31,3 +31,13 @@ export const removeReaction = async (messageId, emoji) => {
     });
     return response.data;
 };
+
+export const getThreadMessages = async (messageId) => {
+    const response = await api.get(`/messages/${messageId}/thread`);
+    return response.data;
+};
+
+export const sendThreadReply = async (messageId, content) => {
+    const response = await api.post(`/messages/${messageId}/thread`, { content });
+    return response.data;
+};
