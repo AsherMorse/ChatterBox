@@ -128,6 +128,7 @@ function ThreadSidebar({ isOpen, onClose, parentMessage }) {
                 transition-all duration-200
                 shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(0,0,0,0.3)]
                 rounded-2xl
+                overflow-hidden
                 z-40
                 ${isOpen ? 'right-4 opacity-100' : '-right-[420px] opacity-0 pointer-events-none'}
             `}
