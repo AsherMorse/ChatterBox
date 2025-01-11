@@ -3,9 +3,6 @@ import EventEmitter from '../../utils/EventEmitter';
 import { getToken } from '../api/auth';
 import api from '../api/api';
 
-// Configure EventEmitter for reactions
-const reactionEvents = new EventEmitter();
-
 class RealtimeService {
     constructor() {
         this.channels = new Map();
@@ -20,6 +17,7 @@ class RealtimeService {
         this.retryCount = 0;
         this.retryDelay = 1000;
         this.initialized = false;
+        this.reactionEvents = new EventEmitter();
     }
 
     async initialize() {
@@ -271,7 +269,7 @@ class RealtimeService {
                         messageId,
                         event: payload.eventType
                     });
-                    reactionEvents.emit(messageId);
+                    this.reactionEvents.emit(messageId);
                 }
             )
             .on('postgres_changes',
@@ -496,7 +494,7 @@ class RealtimeService {
                         messageId,
                         event: payload.eventType
                     });
-                    reactionEvents.emit(messageId);
+                    this.reactionEvents.emit(messageId);
                 }
             )
             .on('postgres_changes',
@@ -990,4 +988,4 @@ class RealtimeService {
 }
 
 const realtimeService = new RealtimeService();
-export { realtimeService as default, reactionEvents }; 
+export default realtimeService; 

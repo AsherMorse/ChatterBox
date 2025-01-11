@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import EmojiPicker from './EmojiPicker';
 import { addReaction, removeReaction, getMessageReactions } from '../../../services/api/messageService';
-import { reactionEvents } from '../../../services/realtime/realtimeService';
+import realtimeService from '../../../services/realtime/realtimeService';
 
 function MessageReactions({ messageId, currentUserId }) {
     const [showPicker, setShowPicker] = useState(false);
@@ -31,10 +31,10 @@ function MessageReactions({ messageId, currentUserId }) {
             loadReactions();
         };
 
-        reactionEvents.on(messageId, handleReactionChange);
+        realtimeService.reactionEvents.on(messageId, handleReactionChange);
 
         return () => {
-            reactionEvents.off(messageId, handleReactionChange);
+            realtimeService.reactionEvents.off(messageId, handleReactionChange);
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }

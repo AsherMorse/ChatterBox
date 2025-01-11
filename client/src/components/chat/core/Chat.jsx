@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import React from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ChannelList from '../channels/ChannelList';
@@ -178,7 +178,7 @@ function Chat({ onLogout }) {
         };
     }, [currentChannelId, currentDMId, currentUser.id]);
 
-    const handleRealtimeMessage = (event) => {
+    const handleRealtimeMessage = async (event) => {
         let messageWithSender;
         switch (event.type) {
             case 'new_message':
@@ -261,7 +261,7 @@ function Chat({ onLogout }) {
             case 'reaction_change':
                 const targetMessage = currentMessagesRef.current.find(msg => msg.id === event.messageId);
                 if (targetMessage) {
-                    reactionEvents.emit(event.messageId);
+                    realtimeService.reactionEvents.emit(event.messageId);
                 }
                 break;
         }
