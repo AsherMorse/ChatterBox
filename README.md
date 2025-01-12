@@ -88,11 +88,12 @@ ChatterBox/
 │   └── vercel.json           # Deployment config (if using Vercel)
 │
 └── docs/
-    ├── architecture/         # High-level system design
-    ├── features/             # Feature-specific guides
-    ├── frontend/             # UI/UX and component docs
-    ├── backend/              # Server and API docs
-    └── StyleGuide.md         # Documentation style guide
+    ├── Architecture.md       # High-level system design
+    ├── Backend.md           # Server and API docs
+    ├── DesignSystem.md      # Design system documentation
+    ├── Features.md          # Feature-specific guides
+    ├── Frontend.md          # UI/UX and component docs
+    └── StyleGuide.md        # Documentation style guide
 ```
 
 ---
