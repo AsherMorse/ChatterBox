@@ -26,7 +26,6 @@ class RealtimeService {
         }
 
         try {
-            // Validate current authentication state
             const token = this.validateToken();
             this.isAuthenticated = !!token;
 
@@ -35,7 +34,6 @@ class RealtimeService {
             }
 
             this.initialized = true;
-            console.log('RealtimeService initialized successfully');
         } catch (error) {
             console.error('Error initializing RealtimeService:', error);
             throw error;
@@ -43,19 +41,14 @@ class RealtimeService {
     }
 
     setAuthenticated(isAuthenticated) {
-        console.log('Setting authentication state:', isAuthenticated);
         this.isAuthenticated = isAuthenticated;
 
         if (isAuthenticated) {
-            // Handle any pending presence updates
             if (this.pendingPresenceUpdate) {
-                console.log('Processing pending presence update:', this.pendingPresenceUpdate);
                 this.setPresence(this.pendingPresenceUpdate);
             }
-            // Start presence monitoring
             this.startPresenceMonitoring();
         } else {
-            // Clean up when not authenticated
             this.stopPresenceMonitoring();
             this.cleanupSubscriptions();
         }
@@ -86,21 +79,17 @@ class RealtimeService {
     }
 
     async setPresence(presence) {
-        // Validate presence value
         const validPresenceStates = ['online', 'offline', 'idle'];
         if (!validPresenceStates.includes(presence)) {
             console.error(`Invalid presence state: ${presence}. Must be one of: ${validPresenceStates.join(', ')}`);
             return;
         }
 
-        // If not authenticated, queue the presence update
         if (!this.isAuthenticated) {
-            console.log('Queueing presence update for after authentication:', presence);
             this.pendingPresenceUpdate = presence;
             return;
         }
 
-        // Validate token
         if (!this.validateToken()) {
             console.warn('Cannot update presence: Invalid or missing authentication token');
             this.pendingPresenceUpdate = presence;
@@ -108,21 +97,17 @@ class RealtimeService {
         }
 
         try {
-            console.log('Updating presence to:', presence);
             const response = await api.patch('/user-status/presence', { presence });
             
             if (response.data) {
-                // Reset retry counters on success
                 this.retryCount = 0;
                 this.retryDelay = 1000;
                 this.pendingPresenceUpdate = null;
 
-                // Notify subscribers about the update
                 this.presenceSubscribers.forEach(callback => {
                     callback(response.data);
                 });
 
-                console.log('Presence updated successfully:', response.data);
                 return true;
             }
         } catch (error) {
@@ -132,19 +117,14 @@ class RealtimeService {
                 timestamp: new Date().toISOString()
             });
 
-            // Implement exponential backoff retry logic
             if (this.retryCount < this.maxRetries) {
                 this.retryCount++;
-                this.retryDelay *= 2; // Exponential backoff
+                this.retryDelay *= 2;
                 
-                console.log(`Retrying presence update in ${this.retryDelay}ms (attempt ${this.retryCount}/${this.maxRetries})`);
-                
-                // Clear any existing retry timeout
                 if (this.presenceRetryTimeout) {
                     clearTimeout(this.presenceRetryTimeout);
                 }
                 
-                // Set up retry
                 this.pendingPresenceUpdate = presence;
                 this.presenceRetryTimeout = setTimeout(() => {
                     if (this.isAuthenticated && this.pendingPresenceUpdate) {

@@ -1,331 +1,268 @@
+x```markdown
 # ChatterBox
 
-A full-stack real-time chat application built with React (client) and Node.js/Express (server), using Supabase as the backend database and realtime engine.
+A modern real-time chat application built with a microservices-based architecture, event-driven communication, and secure authentication. This README provides a consolidated overview of the codebase, setup instructions, and best practices. For deeper dives into specific topics, refer to the documentation files located in the "docs/" directory.
 
 ## Table of Contents
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Features](#features)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Setup Environment Variables](#setup-environment-variables)
-  - [Install Dependencies](#install-dependencies)
-  - [Database Migrations](#database-migrations)
-- [Development](#development)
-  - [Running the Client](#running-the-client)
-  - [Running the Server](#running-the-server)
-- [Project Structure](#project-structure)
-  - [Client](#client)
-  - [Server](#server)
-  - [Database](#database)
-  - [Docs](#docs)
-- [Design System](#design-system)
-- [APIs](#apis)
-  - [Authentication](#authentication)
-  - [Channels](#channels)
-  - [Messages](#messages)
-- [Realtime Features](#realtime-features)
-- [Best Practices & Guidelines](#best-practices--guidelines)
-- [License](#license)
+1. [Overview](#overview)  
+2. [Architecture](#architecture)  
+3. [Features](#features)  
+4. [Directory Structure](#directory-structure)  
+5. [Setup & Configuration](#setup--configuration)  
+6. [Development](#development)  
+7. [Styling & Theming](#styling--theming)  
+8. [API Documentation](#api-documentation)  
+9. [Best Practices](#best-practices)  
+10. [Contributing](#contributing)  
+11. [License](#license)
 
 ---
 
 ## Overview
+ChatterBox is engineered to facilitate real-time messaging, channel-based discussion, and direct messaging. It leverages:
+- React 18 and Vite on the client side
+- Node.js, Express, and Supabase on the server side
+- TailwindCSS for theming and styling
+- Passport.js & JWT for authentication
+- WebSocket/Supabase real-time features for live updates
 
-ChatterBox is a chat and collaboration platform. It allows users to:
-- Sign up and sign in (local authentication with JWT).
-- Create public or private channels.
-- Send direct messages or channel messages, complete with real-time updates.
-- Set presence/online status, including typing indicators.
-- Manage user settings (notifications, theme, etc.).
-
-The project leverages:
-- [React](https://reactjs.org/) with [Vite](https://vitejs.dev/) (client-side).
-- [Express.js](https://expressjs.com/) and [Supabase](https://supabase.com/) (server-side).
-- [Tailwind CSS](https://tailwindcss.com/) for styling.
-- [Passport.js](http://www.passportjs.org/) for authentication strategies.
+Its modular architecture and clear separation of concerns make it highly maintainable and scalable.
 
 ---
 
 ## Architecture
+ChatterBox follows a microservices-inspired architecture with distinct layers for:
+- Frontend (React 18 + Vite)
+- Backend (Node.js + Express)
+- Real-time Services (Supabase real-time)
+- Database (PostgreSQL via Supabase)
 
-1. **Client**: A React app with Vite as the build tool. It communicates with the server’s REST endpoints for CRUD operations and Supabase Realtime for live data.
-2. **Server**: An Express application that serves API endpoints, handles authentication, and interacts with Supabase for data storage (PostgreSQL). It also manages authorization via JWT.
-3. **Supabase**: Database (PostgreSQL) + Realtime subscription. The “channels” and “messages” tables can broadcast changes in real time to connected clients.
+Key points:
+- The frontend uses React Router for navigation and React Context/Hook-based state management.  
+- The backend exposes a RESTful API and includes WebSocket-based real-time features from Supabase.  
+- Each layer is independently configurable, allowing for easy updates and deployment.
+
+For a full structural overview, see the “docs/Architecture.md” file.  
+
+### Core Components
+- Client (in “client/”): Manages UI, usage flows, and data fetching.  
+- Server (in “server/”): Handles API routes, authentication, and database interactions.  
 
 ---
 
 ## Features
+1. Real-time Messaging: Instant updates across channels and direct messages.  
+2. Channel Management: Create, join, and manage chat groups.  
+3. Direct Messaging: Private one-on-one conversations.  
+4. User Presence & Status: Track who is online, away, or offline.  
+5. File Sharing: Attach and manage files in chat.  
+6. Theming: Light and dark modes with a configurable theme system.  
 
-- Responsive design with a custom [Design System](#design-system).
-- Real-time chat with presence and typing indicators.
-- JWT-based authentication and role-based channel ownership (owners can modify channels).
-- Supabase triggers maintain updated timestamps for specific tables.
-- User-friendly modals and forms for creating channels and sending messages.
+Please review “docs/Features.md” for a complete rundown of integrated features and usage details.
 
 ---
 
-## Getting Started
+## Directory Structure
 
-### Prerequisites
+Below are the high-level directories. See the more detailed structures inside the “client/” and “server/” folders and in the “docs/” folder for full breakdowns.
 
-- Node.js (v16+ recommended)
-- npm or yarn
-- PostgreSQL (if you are running your own instance outside of Supabase)  
-  OR  
-  A Supabase project with the necessary environment variables.
-
-### Setup Environment Variables
-
-In both the `client` and `server` sides, create and configure your `.env` files:
-
-1. **Server**: In `server/.env`, you need:
-   ```
-   SUPABASE_URL=<your-supabase-url>
-   SUPABASE_SERVICE_KEY=<your-supabase-service-key>
-   JWT_SECRET=<your-jwt-secret>
-   CLIENT_URL=http://localhost:5173    <-- or replace with your client URL
-   PORT=3000
-   ```
-2. **Client**: In `client/.env` (or `client/.env.local`), you can define:
-   ```
-   VITE_SUPABASE_URL=<your-supabase-url>
-   VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-   ```
-
-Note that in the provided `.gitignore` files, environment files (`.env`) are ignored to avoid committing sensitive information.
-
-### Install Dependencies
-
-From the root directory, install dependencies for both client and server:
-
-```bash
-cd client
-npm install
-# or yarn
-
-cd ../server
-npm install
-# or yarn
+```plaintext
+ChatterBox/
+├── client/
+│   ├── src/
+│   │   ├── components/       # UI and feature components
+│   │   ├── pages/            # Page-level routes
+│   │   ├── services/         # API and real-time service layers
+│   │   ├── styles/           # Tailwind and custom CSS
+│   │   ├── utils/            # Utility functions
+│   │   └── App.jsx           # Root component
+│   ├── public/               # Static assets
+│   └── index.html            # Entry HTML
+│
+├── server/
+│   ├── src/
+│   │   ├── routes/           # API route handlers
+│   │   ├── services/         # Business logic
+│   │   ├── middleware/       # Express middleware (auth, validation)
+│   │   └── index.js          # Entry point
+│   ├── db/                   # Database scripts
+│   └── vercel.json           # Deployment config (if using Vercel)
+│
+└── docs/
+    ├── architecture/         # High-level system design
+    ├── features/             # Feature-specific guides
+    ├── frontend/             # UI/UX and component docs
+    ├── backend/              # Server and API docs
+    └── StyleGuide.md         # Documentation style guide
 ```
 
-### Database Migrations
+---
 
-If you’re using your own Postgres database, you will need to run the SQL migrations located in the `server/db/migrations` folder. If you are using Supabase, you can run these migrations via the Supabase SQL editor or your preferred method.
+## Setup & Configuration
+Follow these steps to get started locally:
 
-For example, you could copy the contents of:
-```sql:server/db/migrations/001_initial_schema.sql
--- SQL for initial schema
-```
-into the Supabase SQL editor, followed by:
-```sql:server/db/migrations/002_enable_realtime.sql
--- SQL for enabling realtime
-```
-and so on. Make sure to run them in numerical order.
+1. **Clone the Repository**  
+   ```bash
+   git clone https://github.com/your_org/chatterbox.git
+   cd chatterbox
+   ```
+
+2. **Install Dependencies**  
+   - For the client:
+     ```bash
+     cd client
+     npm install
+     ```
+   - For the server:
+     ```bash
+     cd server
+     npm install
+     ```
+
+3. **Environment Variables**  
+   - Create a `.env` file in both “client/” and “server/” based on `.env.example` or `.env.production`:
+     ```bash
+     cp .env.example .env
+     ```
+   - Set your Supabase credentials, JWT secrets, and other required variables as outlined in:
+     - “docs/Client.md” for client variables  
+     - “docs/Server.md” for server variables  
+
+4. **Build Tools**  
+   - Client uses Vite (configured in `vite.config.js`).  
+   - Server uses Node.js and can be deployed on Vercel (optional).
+
+For detailed instructions, see:
+- “docs/Client.md” or “client/Client.md” (client setup)  
+- “docs/Server.md” or “server/Server.md” (server setup)
 
 ---
 
 ## Development
 
-### Running the Client
-
-1. Go to the `client/` directory.  
-2. Run:
+1. **Running the Client**  
+   From the “client/” folder:
    ```bash
-   npm run dev
+   npm run dev | cat
    ```
-   By default, this starts the client on [http://localhost:5173](http://localhost:5173).
+   This starts a local dev server (default at localhost:5173).  
 
-### Running the Server
-
-1. Go to the `server/` directory.  
-2. Run:
+2. **Running the Server**  
+   From the “server/” folder:
    ```bash
-   npm run dev
+   npm run dev | cat
    ```
-   This starts the server on the port specified in `server/.env` (default is `3000`).  
+   The server typically starts on port 3000.  
 
-Ensure that your `CLIENT_URL` in the server `.env` matches the actual client origin to allow cross-origin requests (CORS).
+3. **Linting & Formatting**  
+   ```bash
+   npm run lint | cat
+   ```
+   ESLint is configured to enforce React best practices, modern JS usage, and consistent formatting.  
 
----
-
-## Project Structure
-
-Below is a high-level overview of important directories and files:
-
-```
-ChatterBox/
-├─ client/
-│  ├─ public/
-│  ├─ src/
-│  │  ├─ components/
-│  │  ├─ pages/
-│  │  ├─ services/
-│  │  └─ styles/
-│  ├─ .gitignore
-│  ├─ index.html
-│  ├─ package.json
-│  ├─ tailwind.config.js
-│  ├─ postcss.config.js
-│  └─ vite.config.js
-├─ server/
-│  ├─ src/
-│  │  ├─ config/
-│  │  ├─ middleware/
-│  │  ├─ routes/
-│  │  └─ services/
-│  ├─ db/
-│  │  ├─ migrations/
-│  │  ├─ fix_realtime.sql
-│  ├─ .gitignore
-│  ├─ package.json
-│  └─ .env (ignored)
-├─ docs/
-│  └─ design-system.md
-└─ README.md (this file)
-```
-
-### Client
-
-- Main entry point:  
-  ```javascript:client/src/main.jsx
-  import React from 'react'
-  import ReactDOM from 'react-dom/client'
-  import App from './App'
-  import './styles/index.css'
-  ...
-  ```
-- Uses React Router for routing (see `client/src/App.jsx`).
-- Components and pages in `client/src/components` and `client/src/pages`.
-- API calls abstracted in `client/src/services/api/api.js`.
-
-### Server
-
-- Main entry point:  
-  ```javascript:server/src/index.js
-  import express from 'express'
-  import cors from 'cors'
-  ...
-  ```
-- Routes in `server/src/routes`. Notable routes include:
-  - `auth.js` for user registration/login.
-  - `channels.js` for channel CRUD.
-  - `messages.js` for message posting.
-- Supabase client configured in `server/src/config/supabase.js`.
-- Passport strategies (local + JWT) in `server/src/config/passport.js`.
-
-### Database
-
-- SQL migrations in `server/db/migrations/`.  
-- Contains schema definitions (`001_initial_schema.sql`), enabling realtime functionality (`002_enable_realtime.sql`, `003_fix_realtime.sql`), and any other changes.
-
-### Docs
-
-- `docs/design-system.md` describes the color palette, typography, spacing, shadows, border radius, and more. This is a reference for consistent styling across the app.
+4. **Code Style**  
+   - Follows guidelines in “docs/StyleGuide.md.”  
+   - Use JSDoc-style comments for React components.  
+   - Keep commits concise (review with `git status`, then `git add .`, then `git commit -m "Your message"`).
 
 ---
 
-## Design System
+## Styling & Theming
+The project uses TailwindCSS with a custom theme:
+- Light and dark modes, toggled by adding the `dark` class to the HTML element.  
+- Custom color tokens defined in “docs/DesignSystem.md.”  
+- Example usage:
 
-The full design system is documented in:
-```markdown:docs/design-system.md
-# ChatterBox Design System
+```jsx
+<button className="
+  px-4 py-2
+  bg-emerald text-white
+  dark:bg-dark-bg-primary
+  rounded-md
+  transition
+">
+  Click Me
+</button>
+```
 
-## 1. Colors
-...
-```
-It outlines:
-- **Color Palette** (Primary, Secondary, Neutral, etc.)
-- **Typography** (Fonts & font sizes)
-- **Spacing & Sizing**
-- **Shadows & Border Radii**
-- **Animations** (keyframes, durations)
-- **Responsive Breakpoints**
-
-The client implements many of these design tokens in files like:
-```css:client/src/styles/theme.css
-:root {
-  --primary-50: #f0f9ff;
-  ...
-}
-```
-and through the Tailwind configuration in:
-```javascript:client/tailwind.config.js
-export default {
-  theme: {
-    extend: {
-      colors: {
-        'gunmetal': '#272D2D',
-        'rose-quartz': '#A39BA8',
-        'powder-blue': '#B8C5D6',
-        ...
-      },
-      ...
-    }
-  }
-}
-```
+For more details:
+- “docs/DesignSystem.md”  
+- “docs/Frontend.md” (Styling section)  
 
 ---
 
-## APIs
+## API Documentation
+ChatterBox’s server follows RESTful conventions. Endpoints include:
+- `/api/auth` for registration, login, and token management
+- `/api/messages` for message creation, reading, and deletion
+- `/api/channels` for channel CRUD operations
+- `/api/users` for user profiles and status
+- `/api/direct-messages` for private chats
 
-### Authentication
+All API documentation follows the structure in “docs/StyleGuide.md,” including:
+1. HTTP Method  
+2. Endpoint Path  
+3. Request Parameters  
+4. Response Format  
+5. Example Request/Response  
+6. Error Codes  
+7. Version Numbers (where applicable)  
 
-Implemented in:
-```javascript:server/src/routes/auth.js
-// Register and login routes
-```
-- `/api/auth/register`  
-- `/api/auth/login`  
-
-Generates a JWT token upon successful login or registration. The client stores this token in `localStorage` to include with each subsequent API request (`Authorization: Bearer ...`).
-
-### Channels
-
-```javascript:server/src/routes/channels.js
-// Create, list, update, and more
-```
-- `POST /api/channels/` to create a channel.
-- `PUT /api/channels/:channelId` to update an existing channel (must be owner).
-
-### Messages
-
-```javascript:server/src/routes/messages.js
-// Create and fetch messages
-```
-- `POST /api/messages/` to send a message.
+See “docs/Routes.md” and the “backend/” or “server/” subfolders within “docs/” for endpoint-specific guides.
 
 ---
 
-## Realtime Features
+## Best Practices
+Adhering to the guidelines in “docs/StyleGuide.md,” the following principles shape ChatterBox’s codebase:
 
-ChatterBox leverages Supabase Realtime for:
-- Listening to `messages` table changes (inserts, updates, deletes).
-- Emitting presence-based events for typing indicators.
-- React’s client receives updates through the `realtimeService` described in:
-  ```javascript:client/src/services/realtime/realtimeService.js
-  ```
-This allows the UI to update instantly whenever a new message arrives or a user starts typing.
+1. **Language & Tone**  
+   - Use the present tense and active voice.  
+   - Be concise yet thorough.  
+
+2. **State Management**  
+   - Prefer local state in components for UI concerns.  
+   - Use React Context sparingly for global data.  
+   - Integrate React hooks for data fetching, side effects, and real-time events.
+
+3. **Performance**  
+   - Code splitting (lazy-loaded components).  
+   - React.memo and useMemo for expensive renders.  
+   - Virtualized lists for large datasets.  
+   - Debounce/throttle frequent operations (e.g., searches).
+
+4. **Security**  
+   - Store and manage secrets in environment variables.  
+   - Validate all inputs on the server.  
+   - Hash passwords (bcrypt) and handle JWT securely.  
+   - Apply CORS policies with care.
+
+5. **Error Handling**  
+   - Use consistent error structures.  
+   - Provide meaningful messages for troubleshooting.  
+   - Include global error handlers on both client and server.
+
+6. **Logging & Monitoring**  
+   - Log important operations and errors with timestamps.  
+   - Handle logging in production vs. development.  
+
+7. **Version Control**  
+   - Use concise, meaningful commit messages.  
+   - Run tests and linters before committing.  
+   - Keep a clear branch strategy (feature branches, main, etc.).  
 
 ---
 
-## Best Practices & Guidelines
+## Contributing
+Contributions are welcome. Please:
+1. Fork the repository and create a feature branch.  
+2. Make sure to run linting and tests before committing.  
+3. Open a pull request with a descriptive title and summary of changes.
 
-A summary of best practices can be found in `docs/design-system.md` under “Best Practices,” including:
-- WCAG 2.1 AA compliance
-- Proper color contrast
-- Reduced motion preferences for animations
-- Responsive design breakpoints
-- Performance: lazy loading, caching
+Review the “docs/StyleGuide.md” for consistent code documentation and the project’s coding standards.
 
 ---
 
 ## License
+This project is licensed under the MIT License. See the “LICENSE” file for details.
 
-No explicit license is provided in the repository. Please consider contacting the repository owner or maintainers regarding licensing or reuse of this code.
-
----
-
-**Happy Coding!**  
-If you encounter any issues, feel free to open an issue or discuss with the team. ChatterBox is always open for improvements and feature requests.
+```
