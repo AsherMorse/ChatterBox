@@ -1,4 +1,3 @@
-x```markdown
 # ChatterBox
 
 A modern real-time chat application built with a microservices-based architecture, event-driven communication, and secure authentication. This README provides a consolidated overview of the codebase, setup instructions, and best practices. For deeper dives into specific topics, refer to the documentation files located in the "docs/" directory.
@@ -264,5 +263,3 @@ Review the “docs/StyleGuide.md” for consistent code documentation and the pr
 
 ## License
 This project is licensed under the MIT License. See the “LICENSE” file for details.
-
-```
