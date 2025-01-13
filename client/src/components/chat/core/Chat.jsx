@@ -352,9 +352,12 @@ function Chat({ onLogout }) {
                     // Send message and handle bot's response separately
                     sendDMMessage(currentDMId, messageContent)
                         .then(botResponse => {
-                            setIsChatterbotTyping(false);
                             if (botResponse) {
                                 setMessages(prev => [...prev, botResponse]);
+                                // Add a small delay before hiding the typing indicator
+                                setTimeout(() => {
+                                    setIsChatterbotTyping(false);
+                                }, 300);
                             }
                         })
                         .catch(error => {
@@ -491,33 +494,74 @@ function Chat({ onLogout }) {
 
     // Update the renderTypingIndicator function
     const renderTypingIndicator = () => {
-        if (!isChatterbotTyping) return null;
-        
-        return (
-            <div className="absolute left-1/2 -translate-x-1/2 -top-10 z-0">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 
-                    bg-[#F8FAFD] dark:bg-dark-bg-secondary 
-                    border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
-                    whitespace-nowrap"
-                >
-                    <div className="flex space-x-1">
-                        <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                        <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                        <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
+        // For ChatterBot
+        if (currentDMId === CHATTERBOT_ID) {
+            if (!isChatterbotTyping) return null;
+            
+            return (
+                <div className="absolute left-1/2 -translate-x-1/2 -top-10 z-0">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 
+                        bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                        border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                        animate-typing-slide-up
+                        whitespace-nowrap"
+                    >
+                        <div className="flex space-x-1">
+                            <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                            <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                            <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
+                        </div>
+                        <span className="text-sm text-[#272D2D] dark:text-dark-text-primary">
+                            ChatterBot is typing...
+                        </span>
                     </div>
-                    <span className="text-sm text-[#272D2D] dark:text-dark-text-primary">
-                        ChatterBot is typing...
-                    </span>
                 </div>
-            </div>
-        );
+            );
+        }
+
+        // For regular channels and DMs
+        if (isTypingVisible !== 'hidden' && typingUsers.length > 0) {
+            return (
+                <div className="absolute left-1/2 -translate-x-1/2 -top-10 z-0">
+                    <div className="relative h-8 overflow-visible">
+                        <div className={`
+                            inline-flex items-center gap-2 px-3 py-1.5 
+                            bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                            border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                            ${isTypingVisible === 'entering' ? 'animate-typing-slide-up' : ''}
+                            ${isTypingVisible === 'exiting' ? 'animate-typing-slide-down' : ''}
+                            whitespace-nowrap
+                        `}>
+                            <div className="flex space-x-1">
+                                <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
+                            </div>
+                            <span className="text-sm text-[#272D2D] dark:text-dark-text-primary">
+                                {getTypingText()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        return null;
     };
 
     // Helper function to get typing text
     const getTypingText = () => {
-        if (typingUsers.length === 0) return '';
-        const username = typingUsers[0].username;
-        return `${username} is typing...`;
+        const otherTypingUsers = typingUsers.filter(username => username !== currentUser.username);
+        if (otherTypingUsers.length === 0) return '';
+
+        if (otherTypingUsers.length === 1) {
+            return `${otherTypingUsers[0]} is typing...`;
+        } else if (otherTypingUsers.length === 2) {
+            return `${otherTypingUsers[0]} and ${otherTypingUsers[1]} are typing...`;
+        } else {
+            const othersCount = otherTypingUsers.length - 2;
+            return `${otherTypingUsers[0]}, ${otherTypingUsers[1]} and ${othersCount} more are typing...`;
+        }
     };
 
     const handleSearch = (query) => {
