@@ -70,25 +70,39 @@ router.post('/register', async (req, res) => {
 
 // Login route
 router.post('/login', (req, res, next) => {
+    if (!req.body.email || !req.body.password) {
+        console.error('Missing credentials:', { 
+            hasEmail: !!req.body.email, 
+            hasPassword: !!req.body.password 
+        });
+        return res.status(400).json({ message: 'Email and password are required' });
+    }
+
     passport.authenticate('local', { session: false }, (err, user, info) => {
         if (err) {
-            return next(err);
+            console.error('Authentication error:', err);
+            return res.status(500).json({ message: 'Internal server error during authentication' });
         }
         if (!user) {
             return res.status(401).json({ message: info.message });
         }
 
-        // Generate JWT
-        const token = generateToken(user);
+        try {
+            // Generate JWT
+            const token = generateToken(user);
 
-        return res.json({
-            token,
-            user: {
-                id: user.id,
-                email: user.email,
-                username: user.username
-            }
-        });
+            return res.json({
+                token,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    username: user.username
+                }
+            });
+        } catch (error) {
+            console.error('Token generation error:', error);
+            return res.status(500).json({ message: 'Error generating authentication token' });
+        }
     })(req, res, next);
 });
 

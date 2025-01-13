@@ -12,10 +12,15 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    console.error('Environment variables check failed:', {
+        SUPABASE_URL: !!process.env.SUPABASE_URL,
+        SUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY
+    });
     throw new Error('Missing required Supabase environment variables');
 }
 
 if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET is missing');
     throw new Error('Missing required JWT_SECRET environment variable');
 }
 
@@ -39,7 +44,12 @@ passport.use(new LocalStrategy(
                 .eq('email', email)
                 .single();
 
-            if (error || !user) {
+            if (error) {
+                console.error('Supabase error in LocalStrategy:', error);
+                return done(error);
+            }
+
+            if (!user) {
                 return done(null, false, { message: 'Incorrect email.' });
             }
 
@@ -51,6 +61,7 @@ passport.use(new LocalStrategy(
 
             return done(null, user);
         } catch (error) {
+            console.error('Unexpected error in LocalStrategy:', error);
             return done(error);
         }
     }
