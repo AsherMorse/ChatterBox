@@ -2,6 +2,7 @@ import { supabase } from '../../config/supabase';
 import EventEmitter from '../../utils/EventEmitter';
 import { getToken } from '../api/auth';
 import api from '../api/api';
+import { getUser } from '../api/auth';
 
 class RealtimeService {
     constructor() {
@@ -149,7 +150,8 @@ class RealtimeService {
 
         try {
             // Get current user's status from API
-            const response = await api.get(`/user-status/${supabase.auth.user()?.id}`);
+            const user = getUser();
+            const response = await api.get(`/user-status/${user?.id}`);
             const currentUser = response.data;
 
             // Remove automatic online presence setting

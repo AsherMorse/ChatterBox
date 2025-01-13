@@ -20,6 +20,7 @@ import { uploadFile, createFileAttachment } from '../../../services/api/fileServ
 import UserStatusEditor from '../../sidebar/UserStatusEditor';
 import SearchBar from '../features/SearchBar';
 import ThreadSidebar from '../features/ThreadSidebar';
+import { CHATTERBOT_ID } from '../../../services/api/chatterbotService';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -722,8 +723,9 @@ function Chat({ onLogout }) {
                                                         {message.content}
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-0.5">
-                                                        {/* Only show reactions for text messages */}
-                                                        {(!message.file_attachments || message.file_attachments.length === 0) && (
+                                                        {/* Only show reactions for regular messages (not ChatterBot) */}
+                                                        {(!message.file_attachments || message.file_attachments.length === 0) && 
+                                                         message.sender?.id !== CHATTERBOT_ID && (
                                                             <div className="flex-shrink-0">
                                                                 <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
                                                                     <MessageReactions 
@@ -734,23 +736,26 @@ function Chat({ onLogout }) {
                                                             </div>
                                                         )}
                                                         {/* Reply in Thread button */}
-                                                        <button
-                                                            className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
-                                                            onClick={() => handleThreadReply(message)}
-                                                            title="Reply in Thread"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                                            </svg>
-                                                            {message.reply_count > 0 && (
-                                                                <>
-                                                                    <span className="opacity-40 text-xs">•</span>
-                                                                    <span className="text-xs">
-                                                                        {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
-                                                                    </span>
-                                                                </>
-                                                            )}
-                                                        </button>
+                                                        {message.sender?.id !== CHATTERBOT_ID && (
+                                                            <button
+                                                                key={`reply-${message.id}`}
+                                                                className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                                                                onClick={() => handleThreadReply(message)}
+                                                                title="Reply in Thread"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                                </svg>
+                                                                {message.reply_count > 0 && (
+                                                                    <>
+                                                                        <span className="opacity-40 text-xs">•</span>
+                                                                        <span className="text-xs">
+                                                                            {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 {/* Render file attachments */}
@@ -805,7 +810,7 @@ function Chat({ onLogout }) {
                                 </button>
                             </div>
                         )}
-                        
+
                         {/* Message Input */}
                         <div className="p-4 border-t border-powder-blue dark:border-dark-border bg-[#F8FAFD] dark:bg-dark-bg-secondary relative z-10">
                             {/* Show staged files */}

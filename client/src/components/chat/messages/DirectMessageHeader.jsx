@@ -1,79 +1,67 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import realtimeService from '../../../services/realtime/realtimeService';
+import { CHATTERBOT_ID } from '../../../services/api/chatterbotService';
 
-function DirectMessageHeader({ user: initialUser }) {
-    const [user, setUser] = useState(initialUser);
-
-    useEffect(() => {
-        setUser(initialUser);
-    }, [initialUser]);
-
-    useEffect(() => {
-        // Subscribe to presence updates
-        const presenceChannel = realtimeService.subscribeToUserPresence((updatedUser) => {
-            if (updatedUser.id === user.id) {
-                setUser(prevUser => ({
-                    ...prevUser,
-                    presence: updatedUser.presence,
-                    custom_status_text: updatedUser.custom_status_text,
-                    custom_status_color: updatedUser.custom_status_color
-                }));
-            }
-        });
-
-        return () => {
-            if (presenceChannel) {
-                presenceChannel.unsubscribe();
-            }
-        };
-    }, [user.id]);
-
-    const getPresenceColor = (presence) => {
-        switch (presence) {
-            case 'online': return '#10B981'; // emerald
-            case 'idle': return '#F59E0B'; // yellow
-            case 'offline': return '#94A3B8'; // slate-400 (grey)
-            default: return '#10B981'; // default to online
-        }
-    };
-
-    return (
-        <div className="h-16 px-6 border-b border-powder-blue dark:border-dark-border flex items-center bg-[#F8FAFD] dark:bg-dark-bg-secondary">
+function DirectMessageHeader({ user }) {
+    // Special header for ChatterBot
+    if (user.id === CHATTERBOT_ID) {
+        return (
             <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10">
+                {/* Bot Avatar */}
+                <div className="w-8 h-8 rounded-full bg-emerald/10 dark:bg-emerald/20 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-emerald" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div className="flex flex-col">
+                    <h2 className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
+                        {user.username}
+                    </h2>
+                    <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
+                        AI Assistant
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    // Regular user header
+    return (
+        <div className="flex items-center gap-3">
+            <div className="relative flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
                     {user.avatar_url ? (
                         <img
                             src={user.avatar_url}
                             alt={user.username}
-                            className="w-10 h-10 rounded-xl object-cover"
+                            className="w-full h-full object-cover"
                         />
                     ) : (
-                        <div className="w-10 h-10 rounded-xl bg-powder-blue dark:bg-dark-border flex items-center justify-center">
-                            <span className="text-base font-medium text-gunmetal dark:text-dark-text-primary">
-                                {user.username?.[0]?.toUpperCase() || '?'}
-                            </span>
+                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                            {user.username[0].toUpperCase()}
                         </div>
                     )}
-                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-dark-bg-secondary">
-                        <div className="w-full h-full rounded-full" style={{ backgroundColor: user.custom_status_color || getPresenceColor(user.presence) }} />
-                    </div>
                 </div>
-                <div className="flex flex-col">
-                    <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">{user.username}</span>
-                    {user.custom_status_text ? (
-                        <span
-                            className="text-sm"
-                            style={{ color: user.custom_status_color }}
-                        >
-                            {user.custom_status_text}
-                        </span>
-                    ) : (
-                        <span className="text-sm text-rose-quartz dark:text-dark-text-secondary">
-                            {user.presence === 'online' ? 'Online' : user.presence === 'idle' ? 'Idle' : 'Offline'}
-                        </span>
-                    )}
+                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-dark-bg-secondary">
+                    <div 
+                        className="w-full h-full rounded-full"
+                        style={{ 
+                            backgroundColor: user.presence === 'online' ? '#10B981' 
+                                : user.presence === 'idle' ? '#F59E0B' 
+                                : '#94A3B8'
+                        }}
+                    />
                 </div>
+            </div>
+            <div className="flex flex-col">
+                <h2 className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
+                    {user.username}
+                </h2>
+                <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
+                    {user.presence === 'online' ? 'Online' 
+                        : user.presence === 'idle' ? 'Idle' 
+                        : 'Offline'}
+                </span>
             </div>
         </div>
     );
@@ -81,12 +69,11 @@ function DirectMessageHeader({ user: initialUser }) {
 
 DirectMessageHeader.propTypes = {
     user: PropTypes.shape({
-        id: PropTypes.string,
-        username: PropTypes.string,
+        id: PropTypes.string.isRequired,
+        username: PropTypes.string.isRequired,
         avatar_url: PropTypes.string,
-        presence: PropTypes.oneOf(['online', 'offline', 'idle']),
-        custom_status_text: PropTypes.string,
-        custom_status_color: PropTypes.string
+        presence: PropTypes.string,
+        isBot: PropTypes.bool
     }).isRequired
 };
 
