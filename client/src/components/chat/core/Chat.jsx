@@ -51,6 +51,7 @@ function Chat({ onLogout }) {
     const messageRefs = useRef({});
     const [isThreadOpen, setIsThreadOpen] = useState(false);
     const [activeThreadMessage, setActiveThreadMessage] = useState(null);
+    const [isChatterbotTyping, setIsChatterbotTyping] = useState(false);
 
     // Initialize sidebar state based on screen size
     useEffect(() => {
@@ -334,7 +335,36 @@ function Chat({ onLogout }) {
                 };
                 sentMessage = await sendMessage(message);
             } else if (currentDMId) {
-                sentMessage = await sendDMMessage(currentDMId, messageContent);
+                // For ChatterBot, add user's message immediately
+                if (currentDMId === CHATTERBOT_ID) {
+                    // Add user's message right away
+                    const userMessage = {
+                        id: Date.now().toString(),
+                        content: messageContent,
+                        created_at: new Date().toISOString(),
+                        sender: currentUser
+                    };
+                    setMessages(prev => [...prev, userMessage]);
+                    
+                    // Show typing indicator
+                    setIsChatterbotTyping(true);
+                    
+                    // Send message and handle bot's response separately
+                    sendDMMessage(currentDMId, messageContent)
+                        .then(botResponse => {
+                            setIsChatterbotTyping(false);
+                            if (botResponse) {
+                                setMessages(prev => [...prev, botResponse]);
+                            }
+                        })
+                        .catch(error => {
+                            setIsChatterbotTyping(false);
+                            console.error('Error getting bot response:', error);
+                        });
+                } else {
+                    // For regular DMs
+                    sentMessage = await sendDMMessage(currentDMId, messageContent);
+                }
             }
 
             // Create file attachments for staged files
@@ -451,40 +481,33 @@ function Chat({ onLogout }) {
     useEffect(() => {
         if (typingUsers.length > 0) {
             setIsTypingVisible('entering');
-        } else {
+        } else if (isTypingVisible === 'entering') {
             setIsTypingVisible('exiting');
-            const timeout = setTimeout(() => {
+            setTimeout(() => {
                 setIsTypingVisible('hidden');
-            }, 500); // Increased from 300ms to 500ms to ensure animation completes
-            return () => clearTimeout(timeout);
+            }, 300);
         }
-    }, [typingUsers]);
+    }, [typingUsers, isTypingVisible]);
 
     // Update the renderTypingIndicator function
     const renderTypingIndicator = () => {
-        // Always render the container, but conditionally render the content
+        if (!isChatterbotTyping) return null;
+        
         return (
             <div className="absolute left-1/2 -translate-x-1/2 -top-10 z-0">
-                <div className="relative h-8 overflow-visible">
-                    {(isTypingVisible !== 'hidden' && typingUsers.length > 0) && (
-                        <div className={`
-                            inline-flex items-center gap-2 px-3 py-1.5 
-                            bg-[#F8FAFD] dark:bg-dark-bg-secondary 
-                            border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
-                            ${isTypingVisible === 'entering' ? 'animate-typing-slide-up' : ''}
-                            ${isTypingVisible === 'exiting' ? 'animate-typing-slide-down' : ''}
-                            whitespace-nowrap
-                        `}>
-                            <div className="flex space-x-1">
-                                <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                                <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                                <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
-                            </div>
-                            <span className="text-sm text-[#272D2D] dark:text-dark-text-primary">
-                                {getTypingText()}
-                            </span>
-                        </div>
-                    )}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 
+                    bg-[#F8FAFD] dark:bg-dark-bg-secondary 
+                    border border-[#B8C5D6] dark:border-dark-border rounded-lg shadow-sm
+                    whitespace-nowrap"
+                >
+                    <div className="flex space-x-1">
+                        <div className="w-1.5 h-1.5 bg-[#23CE6B] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                        <div className="w-1.5 h-1.5 bg-[#4DD88C] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                        <div className="w-1.5 h-1.5 bg-[#1BA557] rounded-full animate-bounce"></div>
+                    </div>
+                    <span className="text-sm text-[#272D2D] dark:text-dark-text-primary">
+                        ChatterBot is typing...
+                    </span>
                 </div>
             </div>
         );
@@ -492,17 +515,9 @@ function Chat({ onLogout }) {
 
     // Helper function to get typing text
     const getTypingText = () => {
-        const otherTypingUsers = typingUsers.filter(username => username !== currentUser.username);
-        if (otherTypingUsers.length === 0) return '';
-
-        if (otherTypingUsers.length === 1) {
-            return `${otherTypingUsers[0]} is typing`;
-        } else if (otherTypingUsers.length === 2) {
-            return `${otherTypingUsers[0]} and ${otherTypingUsers[1]} are typing`;
-        } else {
-            const othersCount = otherTypingUsers.length - 2;
-            return `${otherTypingUsers[0]}, ${otherTypingUsers[1]} and ${othersCount} more are typing`;
-        }
+        if (typingUsers.length === 0) return '';
+        const username = typingUsers[0].username;
+        return `${username} is typing...`;
     };
 
     const handleSearch = (query) => {
@@ -723,9 +738,10 @@ function Chat({ onLogout }) {
                                                         {message.content}
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-0.5">
-                                                        {/* Only show reactions for regular messages (not ChatterBot) */}
+                                                        {/* Only show reactions for regular messages (not ChatterBot or messages in ChatterBot chat) */}
                                                         {(!message.file_attachments || message.file_attachments.length === 0) && 
-                                                         message.sender?.id !== CHATTERBOT_ID && (
+                                                         message.sender?.id !== CHATTERBOT_ID && 
+                                                         currentDMId !== CHATTERBOT_ID && (
                                                             <div className="flex-shrink-0">
                                                                 <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
                                                                     <MessageReactions 
@@ -735,8 +751,8 @@ function Chat({ onLogout }) {
                                                                 </div>
                                                             </div>
                                                         )}
-                                                        {/* Reply in Thread button */}
-                                                        {message.sender?.id !== CHATTERBOT_ID && (
+                                                        {/* Reply in Thread button (not for ChatterBot messages or messages in ChatterBot chat) */}
+                                                        {message.sender?.id !== CHATTERBOT_ID && currentDMId !== CHATTERBOT_ID && (
                                                             <button
                                                                 key={`reply-${message.id}`}
                                                                 className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"

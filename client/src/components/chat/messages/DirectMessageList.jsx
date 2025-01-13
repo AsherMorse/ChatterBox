@@ -110,7 +110,7 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
                             key={bot.id}
                             onClick={() => onDMSelect(bot.id)}
                             className={`
-                                relative w-full px-3 py-2 rounded-xl flex items-center gap-3
+                                relative w-full px-3 py-2 rounded-xl flex items-center gap-3 text-left
                                 transition-colors duration-200
                                 ${isSelected
                                     ? 'text-emerald z-10' 
@@ -147,7 +147,7 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
                         key={conversation.dm_id}
                         onClick={() => onDMSelect(conversation.dm_id)}
                         className={`
-                            relative w-full px-3 py-2 rounded-xl flex items-center gap-3
+                            relative w-full px-3 py-2 rounded-xl flex items-center gap-3 text-left
                             transition-colors duration-200
                             ${isSelected
                                 ? 'text-emerald z-10' 
@@ -184,7 +184,7 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
                                 />
                             </div>
                         </div>
-                        <div className="relative z-10 flex flex-col min-w-0">
+                        <div className="relative z-10 flex flex-col min-w-0 text-left">
                             <span className="truncate">{otherUser.username}</span>
                             <span className={`text-xs ${isSelected ? 'text-emerald' : 'text-rose-quartz dark:text-dark-text-secondary'}`}>
                                 {otherUser.presence === 'online' ? 'Online' 

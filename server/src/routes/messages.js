@@ -289,11 +289,11 @@ router.get('/:messageId/reactions', authenticateJWT, async (req, res) => {
     try {
         const { messageId } = req.params;
 
+        // Get all reactions for the message with user info
         const { data: reactions, error } = await supabase
             .from('message_reactions')
             .select(`
                 emoji,
-                user_id,
                 users:user_id (
                     id,
                     username,
@@ -321,10 +321,10 @@ router.get('/:messageId/reactions', authenticateJWT, async (req, res) => {
             return acc;
         }, {});
 
-        res.json(Object.values(groupedReactions));
+        return res.json(Object.values(groupedReactions));
     } catch (error) {
-        console.error('Error in reactions retrieval:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        console.error('Error in reaction retrieval:', error);
+        return res.status(500).json({ message: 'Internal server error' });
     }
 });
 
