@@ -7,7 +7,7 @@ import CreateChannelModal from '../channels/CreateChannelModal';
 import CreateDMModal from '../messages/CreateDMModal';
 import DirectMessageHeader from '../messages/DirectMessageHeader';
 import { getMessages, sendMessage, getMessageSender } from '../../../services/api/messageService';
-import { getDMMessages, sendDMMessage, getDMConversation } from '../../../services/api/dmService';
+import { getDMMessages, sendDMMessage, getDMConversation, sendChatterBotMessage } from '../../../services/api/dmService';
 import { getChannel } from '../../../services/api/channelService';
 import realtimeService from '../../../services/realtime/realtimeService';
 import Header from '../../common/Header';
@@ -36,6 +36,7 @@ function Chat({ onLogout }) {
     const [stagedFiles, setStagedFiles] = useState([]);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+    const [isWaitingForBot, setIsWaitingForBot] = useState(false);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -314,6 +315,7 @@ function Chat({ onLogout }) {
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!newMessage.trim() && stagedFiles.length === 0) return;
+        if (currentDMId === CHATTERBOT_ID && isWaitingForBot) return;
 
         // Clear typing indicator immediately before sending
         if (typingChannelRef.current) {
@@ -337,31 +339,48 @@ function Chat({ onLogout }) {
             } else if (currentDMId) {
                 // For ChatterBot, add user's message immediately
                 if (currentDMId === CHATTERBOT_ID) {
+                    setIsWaitingForBot(true);
                     // Add user's message right away
                     const userMessage = {
                         id: Date.now().toString(),
                         content: messageContent,
                         created_at: new Date().toISOString(),
-                        sender: currentUser
+                        sender: currentUser,
+                        channel_id: currentChannelId,
+                        channel_name: currentChannel?.name
                     };
+
+                    // Get conversation history excluding welcome message
+                    const conversationHistory = messages
+                        .filter(msg => msg.id !== 'welcome')
+                        .map(msg => ({
+                            ...msg,
+                            content: msg.content || '',
+                            sender: msg.sender || currentUser,
+                            channel_id: msg.channel_id || currentChannelId,
+                            channel_name: msg.channel_name || currentChannel?.name
+                        }));
+                    
                     setMessages(prev => [...prev, userMessage]);
                     
                     // Show typing indicator
                     setIsChatterbotTyping(true);
                     
-                    // Send message and handle bot's response separately
-                    sendDMMessage(currentDMId, messageContent)
+                    // Send message with full conversation history and channel context
+                    sendChatterBotMessage(messageContent, [...conversationHistory, userMessage], true)
                         .then(botResponse => {
                             if (botResponse) {
                                 setMessages(prev => [...prev, botResponse]);
                                 // Add a small delay before hiding the typing indicator
                                 setTimeout(() => {
                                     setIsChatterbotTyping(false);
+                                    setIsWaitingForBot(false);
                                 }, 300);
                             }
                         })
                         .catch(error => {
                             setIsChatterbotTyping(false);
+                            setIsWaitingForBot(false);
                             console.error('Error getting bot response:', error);
                         });
                 } else {
@@ -910,10 +929,36 @@ function Chat({ onLogout }) {
                             <form onSubmit={handleSendMessage} className="flex items-center gap-3">
                                 <div className="flex-1 relative">
                                     <div className="absolute left-2 top-1/2 -translate-y-1/2">
-                                        <FileUpload 
-                                            onFileSelect={handleFileSelect} 
-                                            disabled={isUploading || (!currentChannelId && !currentDMId)} 
-                                        />
+                                        {currentDMId === CHATTERBOT_ID ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setMessages([{
+                                                        id: 'welcome',
+                                                        content: "👋 Hi! I'm ChatterBot, your AI assistant for ChatterBox. I can help you find information from your chat history and answer questions about past conversations. Feel free to ask me anything!",
+                                                        created_at: new Date().toISOString(),
+                                                        sender: {
+                                                            id: CHATTERBOT_ID,
+                                                            username: 'ChatterBot',
+                                                            isBot: true
+                                                        }
+                                                    }]);
+                                                    setIsWaitingForBot(false);
+                                                }}
+                                                className="p-2 text-rose-quartz hover:text-red-500 hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200"
+                                                title="Clear Chat"
+                                                disabled={isWaitingForBot}
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        ) : (
+                                            <FileUpload 
+                                                onFileSelect={handleFileSelect} 
+                                                disabled={isUploading || (!currentChannelId && !currentDMId)} 
+                                            />
+                                        )}
                                     </div>
                                     <input
                                         type="text"
@@ -927,14 +972,14 @@ function Chat({ onLogout }) {
                                                 handleTyping();
                                             }
                                         }}
-                                        placeholder="Type a message..."
-                                        className="w-full px-4 py-2.5 pl-12 pr-12 rounded-xl border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary dark:text-dark-text-primary focus:outline-none"
-                                        disabled={!currentChannelId && !currentDMId}
+                                        placeholder={isWaitingForBot ? "Waiting for ChatterBot's response..." : "Type a message..."}
+                                        className="w-full px-4 py-2.5 pl-12 pr-12 rounded-xl border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary dark:text-dark-text-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={!currentChannelId && !currentDMId || (currentDMId === CHATTERBOT_ID && isWaitingForBot)}
                                     />
                                     <div className="absolute right-2 top-1/2 -translate-y-1/2">
                                         <button
                                             type="submit"
-                                            disabled={(!newMessage.trim() && stagedFiles.length === 0) || (!currentChannelId && !currentDMId)}
+                                            disabled={(!newMessage.trim() && stagedFiles.length === 0) || (!currentChannelId && !currentDMId) || (currentDMId === CHATTERBOT_ID && isWaitingForBot)}
                                             className="p-2 text-emerald hover:text-emerald-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

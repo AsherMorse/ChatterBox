@@ -1,12 +1,27 @@
 import express from 'express';
 import { authenticateJWT } from '../middleware/auth.js';
 import { createClient } from '@supabase/supabase-js';
+import { OpenAIEmbeddings } from '@langchain/openai';
+import { PineconeStore } from '@langchain/pinecone';
+import { Pinecone } from '@pinecone-database/pinecone';
 
 const router = express.Router();
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_KEY
 );
+
+// Initialize Pinecone client
+const pinecone = new Pinecone({
+    apiKey: process.env.PINECONE_API_KEY,
+});
+
+// Initialize embeddings model
+const embeddings = new OpenAIEmbeddings({
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    modelName: 'text-embedding-3-large',
+    maxConcurrency: 5
+});
 
 // Create a new message
 router.post('/', authenticateJWT, async (req, res) => {
@@ -24,6 +39,17 @@ router.post('/', authenticateJWT, async (req, res) => {
         if (senderError) {
             console.error('Error fetching sender:', senderError);
             return res.status(500).json({ message: 'Error fetching sender information' });
+        }
+
+        // Get channel information if it's a channel message
+        let channelName = null;
+        if (channel_id) {
+            const { data: channel } = await supabase
+                .from('channels')
+                .select('name')
+                .eq('id', channel_id)
+                .single();
+            channelName = channel?.name;
         }
 
         // Create the message with sender information
@@ -50,17 +76,40 @@ router.post('/', authenticateJWT, async (req, res) => {
             .single();
 
         if (messageError) {
-            console.error('Error saving message:', messageError);
-            return res.status(500).json({ message: 'Error saving message' });
+            console.error('Error creating message:', messageError);
+            return res.status(500).json({ message: 'Error creating message' });
         }
 
-        // Format the response to match the expected structure
-        const formattedMessage = {
-            ...message,
-            sender: sender
-        };
+        // Add message to Pinecone
+        try {
+            const index = pinecone.index(process.env.PINECONE_INDEX);
+            const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
+                pineconeIndex: index,
+                namespace: 'chat-messages'
+            });
 
-        res.status(201).json(formattedMessage);
+            // Create document with metadata
+            const document = {
+                pageContent: content,
+                metadata: {
+                    messageId: message.id,
+                    senderId: sender_id,
+                    senderName: sender.username,
+                    channelId: channel_id,
+                    channelName: channelName,
+                    dmId: dm_id,
+                    createdAt: message.created_at
+                }
+            };
+
+            // Add to Pinecone
+            await vectorStore.addDocuments([document]);
+        } catch (embedError) {
+            console.error('Error embedding message:', embedError);
+            // Don't fail the request if embedding fails
+        }
+
+        res.json(message);
     } catch (error) {
         console.error('Error in message creation:', error);
         res.status(500).json({ message: 'Internal server error' });

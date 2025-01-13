@@ -1,5 +1,5 @@
 import api from './api';
-import { CHATTERBOT_ID } from './chatterbotService';
+import { CHATTERBOT_ID, sendMessageToChatterBot } from './chatterbotService';
 
 // ChatterBot's welcome message
 const WELCOME_MESSAGE = {
@@ -50,24 +50,38 @@ export const getDMMessages = async (dmId) => {
 /**
  * Send a message in a DM conversation
  * @param {string} dmId - The ID of the DM conversation
- * @param {string} content - The message content
+ * @param {string} message - The message content
  * @returns {Promise<Object>} The sent message
  */
-export const sendDMMessage = async (dmId, content) => {
+export const sendDMMessage = async (dmId, message) => {
     try {
-        // If it's ChatterBot, use the ChatterBot service instead
+        // If it's ChatterBot, use the ChatterBot service
         if (dmId === CHATTERBOT_ID) {
-            const { sendMessageToChatterBot } = await import('./chatterbotService');
-            return sendMessageToChatterBot(content);
+            return await sendMessageToChatterBot(message);
         }
 
         const response = await api.post('/messages', {
-            content,
+            content: message,
             dm_id: dmId
         });
         return response.data;
     } catch (error) {
         console.error('Error sending DM message:', error);
+        throw error;
+    }
+};
+
+/**
+ * Send a message to ChatterBot with conversation history
+ * @param {string} message - The message content
+ * @param {Array} conversationHistory - Array of previous messages
+ * @returns {Promise<Object>} ChatterBot's response
+ */
+export const sendChatterBotMessage = async (message, conversationHistory = []) => {
+    try {
+        return await sendMessageToChatterBot(message, conversationHistory);
+    } catch (error) {
+        console.error('Error sending message to ChatterBot:', error);
         throw error;
     }
 };

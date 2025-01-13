@@ -46,7 +46,7 @@ router.get('/', authenticateJWT, (req, res) => {
 // POST /api/chatterbot/message - Send a message to ChatterBot
 router.post('/message', authenticateJWT, async (req, res) => {
     try {
-        const { message } = req.body;
+        const { message, conversationHistory } = req.body;
         
         if (!message) {
             return res.status(400).json({ message: 'Message is required' });
@@ -59,26 +59,44 @@ router.post('/message', authenticateJWT, async (req, res) => {
             namespace: 'chat-messages'
         });
 
-        // Perform similarity search
-        const relevantDocs = await vectorStore.similaritySearch(message, 5);
+        // Perform similarity search with more results
+        const relevantDocs = await vectorStore.similaritySearch(message, 30);
         
         if (!relevantDocs || !Array.isArray(relevantDocs)) {
             throw new Error('No relevant documents found');
         }
 
-        // Construct context from relevant documents
+        // Get total message count
+        const stats = await index.describeIndexStats();
+        const totalMessages = stats.totalRecordCount;
+
+        // Construct context from relevant documents with metadata
         const context = relevantDocs
-            .filter(doc => doc && doc.pageContent)
-            .map(doc => doc.pageContent)
+            .filter(doc => doc && doc.pageContent && doc.metadata)
+            .map(doc => {
+                const channelInfo = doc.metadata.channelName ? 
+                    `in channel #${doc.metadata.channelName}` : 
+                    (doc.metadata.dmId ? 'in a DM' : '');
+                const timeInfo = doc.metadata.createdAt ? 
+                    new Date(doc.metadata.createdAt).toLocaleString() : '';
+                return `[${timeInfo} ${channelInfo}] ${doc.metadata.senderName}: ${doc.pageContent}`;
+            })
             .join('\n\n');
+
+        // Format conversation history
+        const formattedHistory = conversationHistory?.length > 0 
+            ? '\nCurrent conversation:\n' + conversationHistory
+                .map(msg => `${msg.sender?.username || 'Unknown'}: ${msg.content}`)
+                .join('\n')
+            : '';
 
         // Construct the messages using LangChain message objects
         const messages = [
             new SystemMessage({
-                content: "You are ChatterBot, a friendly and helpful AI assistant integrated into the ChatterBox chat application. You help users by answering questions about their chat history and providing relevant context. Keep your responses conversational and engaging, while being accurate and helpful. If the context doesn't contain enough information to answer the question, be honest about it."
+                content: `You are ChatterBot, a friendly and helpful AI assistant integrated into the ChatterBox chat application. You help users by answering questions about their chat history and providing relevant context. You have access to ${totalMessages} total messages across all channels. Keep your responses conversational and engaging, while being accurate and helpful. If the context doesn't contain enough information to answer the question, be honest about it.`
             }),
             new HumanMessage({
-                content: `Context from chat history:\n${context}\n\nUser message: ${message}`
+                content: `Context from chat history (showing ${relevantDocs.length} most relevant messages):\n${context}\n${formattedHistory}\n\nUser message: ${message}`
             })
         ];
 
