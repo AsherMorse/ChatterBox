@@ -201,7 +201,14 @@ function Chat({ onLogout }) {
                     sender: event.message.sender || {
                         id: event.message.sender_id,
                         username: 'Loading...',
-                        avatar_url: null
+                        avatar_url: null,
+                        ...(event.message.metadata?.isBot && {
+                            isBot: true,
+                            botType: event.message.metadata.botType,
+                            username: event.message.metadata.originalUser?.username ? 
+                                `${event.message.metadata.originalUser.username} (Avatar)` : 
+                                'Loading...'
+                        })
                     },
                     file_attachments: event.message.file_attachments || []
                 };
@@ -211,7 +218,15 @@ function Chat({ onLogout }) {
                     getMessageSender(event.message.sender_id)
                         .then(sender => {
                             setMessages(prev => prev.map(msg =>
-                                msg.id === event.message.id ? { ...msg, sender } : msg
+                                msg.id === event.message.id ? { 
+                                    ...msg, 
+                                    sender: event.message.metadata?.isBot ? {
+                                        ...sender,
+                                        isBot: true,
+                                        botType: event.message.metadata.botType,
+                                        username: `${sender.username} (Avatar)`
+                                    } : sender 
+                                } : msg
                             ));
                         });
                 }
@@ -369,7 +384,14 @@ function Chat({ onLogout }) {
                     // First send the user's message as a regular DM
                     await sendMessage({
                         content: strippedMessage,
-                        dm_id: currentDMId
+                        dm_id: currentDMId,
+                        metadata: {
+                            originalUser: {
+                                id: otherUser.id,
+                                username: otherUser.username,
+                                avatar_url: otherUser.avatar_url
+                            }
+                        }
                     });
                     
                     // Then send the avatar message
@@ -784,7 +806,7 @@ function Chat({ onLogout }) {
                                         className={`
                                             group flex items-start gap-3 hover:bg-alice-blue dark:hover:bg-dark-bg-secondary rounded-xl 
                                             ${!isFirstInGroup ? '-mt-1' : 'mt-1'}
-                                            ${isAvatarSender(message.sender) ? 'bg-emerald/5' : ''}
+                                            ${message.metadata?.isBot && message.metadata?.botType === 'avatar' ? 'bg-emerald/5' : ''}
                                             py-0.5 px-2 transition-all duration-200
                                         `}
                                     >
@@ -794,37 +816,19 @@ function Chat({ onLogout }) {
                                                 <div className="relative">
                                                     {message.sender?.avatar_url ? (
                                                         <>
-                                                            <div className={`relative w-9 h-9 rounded-full overflow-hidden bg-powder-blue dark:bg-dark-border ${
-                                                                isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
-                                                            }`}>
+                                                            <div className={`relative w-8 h-8 rounded-full overflow-hidden bg-powder-blue dark:bg-dark-border`}>
                                                                 <img
                                                                     src={message.sender.avatar_url}
                                                                     alt={message.sender.username}
-                                                                    className="w-full h-full object-cover"
+                                                                    className="w-full h-full object-cover rounded-full"
                                                                 />
                                                             </div>
-                                                            {isAvatarSender(message.sender) && (
-                                                                <div className="absolute -bottom-0.5 -right-0.5 bg-emerald text-white rounded-full p-1 shadow-sm">
-                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                                                    </svg>
-                                                                </div>
-                                                            )}
                                                         </>
                                                     ) : (
                                                         <div className="relative">
-                                                            <div className={`w-9 h-9 flex items-center justify-center text-base font-medium text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border ${
-                                                                isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
-                                                            }`}>
+                                                            <div className={`w-8 h-8 flex items-center justify-center text-sm font-medium text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border`}>
                                                                 {message.sender?.username?.[0]?.toUpperCase() || '?'}
                                                             </div>
-                                                            {isAvatarSender(message.sender) && (
-                                                                <div className="absolute -bottom-0.5 -right-0.5 bg-emerald text-white rounded-full p-1 shadow-sm">
-                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                                                    </svg>
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     )}
                                                 </div>

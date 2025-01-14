@@ -139,6 +139,7 @@ router.post('/message', authenticateJWT, async (req, res) => {
                 dm_id: req.body.dmId,
                 metadata: {
                     isBot: true,
+                    botType: 'avatar',
                     isAvatar: true,
                     originalUser: {
                         id: targetUserId,
@@ -173,6 +174,7 @@ router.post('/message', authenticateJWT, async (req, res) => {
             sender: {
                 ...userInfo,
                 isBot: true,
+                botType: 'avatar',
                 username: `${userInfo.username} (Avatar)`
             },
             metadata: {

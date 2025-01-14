@@ -75,6 +75,19 @@ router.post('/', authenticateJWT, async (req, res) => {
             return res.status(500).json({ message: 'Error creating message' });
         }
 
+        // Construct the response with metadata in the sender object
+        const responseMessage = {
+            ...message,
+            sender: message.metadata?.isBot && message.metadata?.botType === 'avatar' ? {
+                ...message.sender,
+                isBot: message.metadata.isBot,
+                botType: message.metadata.botType,
+                username: message.metadata.originalUser ? 
+                    `${message.metadata.originalUser.username} (Avatar)` : 
+                    message.sender.username
+            } : message.sender
+        };
+
         // Add message to Pinecone
         try {
             const index = pinecone.index(process.env.PINECONE_INDEX);
@@ -104,7 +117,7 @@ router.post('/', authenticateJWT, async (req, res) => {
             // Don't fail the request if embedding fails
         }
 
-        res.json(message);
+        res.json(responseMessage);
     } catch (error) {
         console.error('Error in message creation:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -172,49 +185,34 @@ router.get('/dm/:dmId', authenticateJWT, async (req, res) => {
         const { dmId } = req.params;
         const { limit = 50 } = req.query;
 
-        const { data: messages, error } = await supabase
+        const { data: messages, error: messagesError } = await supabase
             .from('messages')
             .select(`
                 *,
-                sender:sender_id(id, username, avatar_url),
-                file_attachments(
-                    id,
-                    message_id,
-                    uploader_id,
-                    file:files!file_attachments_file_id_fkey (
-                        id,
-                        name,
-                        type,
-                        size,
-                        url
-                    )
-                )
+                sender:sender_id(id, username, avatar_url)
             `)
             .eq('dm_id', dmId)
-            .eq('is_thread_reply', false)
-            .order('created_at', { ascending: true })
-            .limit(limit);
+            .order('created_at', { ascending: true });
 
-        if (error) {
-            console.error('Error fetching DM messages:', error);
-            return res.status(500).json({ message: 'Error fetching DM messages' });
+        if (messagesError) {
+            console.error('Error fetching messages:', messagesError);
+            return res.status(500).json({ message: 'Error fetching messages' });
         }
 
-        // Transform file attachments to match expected client structure
-        const transformedMessages = messages.map(message => ({
+        // Add metadata to sender objects
+        const processedMessages = messages.map(message => ({
             ...message,
-            file_attachments: message.file_attachments.map(attachment => ({
-                id: attachment.id,
-                message_id: attachment.message_id,
-                uploader_id: attachment.uploader_id,
-                file_name: attachment.file.name,
-                file_type: attachment.file.type,
-                file_size: attachment.file.size,
-                file_url: attachment.file.url
-            }))
+            sender: message.metadata?.isBot && message.metadata?.botType === 'avatar' ? {
+                ...message.sender,
+                isBot: message.metadata.isBot,
+                botType: message.metadata.botType,
+                username: message.metadata.originalUser ? 
+                    `${message.metadata.originalUser.username} (Avatar)` : 
+                    message.sender.username
+            } : message.sender
         }));
 
-        res.json(transformedMessages);
+        res.json(processedMessages);
     } catch (error) {
         console.error('Error in DM message retrieval:', error);
         res.status(500).json({ message: 'Internal server error' });
