@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateJWT } from '../middleware/auth.js';
 import { generateAvatarResponse, getResponseStats, AvatarServiceError, ErrorTypes } from '../services/avatarService.js';
+import { storeAvatarResponse, storeAvatarError, getAvatarHistory, getAvatarStats } from '../services/avatarStorageService.js';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -13,13 +14,52 @@ const supabase = createClient(
 );
 
 // GET /api/avatar/stats - Get avatar service statistics
-router.get('/stats', authenticateJWT, (req, res) => {
+router.get('/stats', authenticateJWT, async (req, res) => {
     try {
-        const stats = getResponseStats();
-        res.json(stats);
+        const runtimeStats = getResponseStats();
+        const userId = req.query.userId;
+        
+        if (userId) {
+            // Get persistent stats for specific user
+            const persistentStats = await getAvatarStats(userId);
+            res.json({
+                runtime: runtimeStats,
+                persistent: persistentStats
+            });
+        } else {
+            // Return only runtime stats if no user specified
+            res.json({ runtime: runtimeStats });
+        }
     } catch (error) {
         res.status(500).json({
             message: 'Error fetching avatar stats',
+            error: error.message
+        });
+    }
+});
+
+// GET /api/avatar/history - Get avatar response history
+router.get('/history', authenticateJWT, async (req, res) => {
+    try {
+        const { userId, limit, offset } = req.query;
+        
+        if (!userId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'User ID is required'
+            });
+        }
+
+        const history = await getAvatarHistory(userId, {
+            limit: parseInt(limit) || 50,
+            offset: parseInt(offset) || 0
+        });
+
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: 'Error fetching avatar history',
             error: error.message
         });
     }
@@ -90,11 +130,37 @@ router.post('/message', authenticateJWT, async (req, res) => {
             userInfo
         );
 
+        // Create a new message for the response
+        const { data: newMessage, error: messageError } = await supabase
+            .from('messages')
+            .insert({
+                content: response.content,
+                sender_id: targetUserId,
+                dm_id: req.body.dmId,
+                channel_id: req.body.channelId
+            })
+            .select()
+            .single();
+
+        if (messageError) {
+            throw new Error('Failed to create message record');
+        }
+
+        // Store the avatar response
+        await storeAvatarResponse({
+            messageId: newMessage.id,
+            targetUserId: targetUserId,
+            originalMessage: message,
+            generatedResponse: response.content,
+            metadata: {
+                ...response.metadata,
+                routeProcessingTime: Date.now() - startTime
+            }
+        });
+
         // Format the response as a message
         const avatarMessage = {
-            id: Date.now().toString(),
-            content: response.content,
-            created_at: new Date().toISOString(),
+            ...newMessage,
             sender: {
                 ...userInfo,
                 isBot: true,
@@ -110,6 +176,18 @@ router.post('/message', authenticateJWT, async (req, res) => {
 
     } catch (error) {
         console.error('Error in avatar message endpoint:', error);
+        
+        // Store the error
+        if (req.body.targetUserId) {
+            await storeAvatarError({
+                messageId: null,
+                targetUserId: req.body.targetUserId,
+                originalMessage: req.body.message || '',
+                errorType: error instanceof AvatarServiceError ? error.type : ErrorTypes.AI_ERROR,
+                errorDetails: error instanceof AvatarServiceError ? error.details : { message: error.message },
+                processingTime: Date.now() - startTime
+            }).catch(console.error); // Don't let error storage failure affect response
+        }
         
         // Handle different error types
         if (error instanceof AvatarServiceError) {
