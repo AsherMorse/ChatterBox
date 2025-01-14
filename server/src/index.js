@@ -11,6 +11,7 @@ import userRoutes from './routes/users.js';
 import directMessageRoutes from './routes/direct-messages.js';
 import askRoutes from './routes/ask.js';
 import chatterbotRoutes from './routes/chatterbot.js';
+import avatarRoutes from './routes/avatar.js';
 import { authenticateJWT } from './middleware/auth.js';
 import userStatusRouter from './routes/userStatus.js';
 
@@ -63,6 +64,7 @@ app.use('/api/direct-messages', directMessageRoutes);
 app.use('/api/user-status', userStatusRouter);
 app.use('/api/ask', askRoutes);
 app.use('/api/chatterbot', chatterbotRoutes);
+app.use('/api/avatar', avatarRoutes);
 
 // Protected route example
 app.get('/api/protected', authenticateJWT, (req, res) => {
