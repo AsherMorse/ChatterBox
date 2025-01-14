@@ -811,7 +811,7 @@ function Chat({ onLogout }) {
                                         `}
                                     >
                                         {/* Avatar Column */}
-                                        <div className="flex-shrink-0 w-10 flex items-start pt-1">
+                                        <div className="flex-shrink-0 w-10 flex items-start pt-0.5">
                                             {isFirstInGroup ? (
                                                 <div className="relative">
                                                     {message.sender?.avatar_url ? (
@@ -833,7 +833,7 @@ function Chat({ onLogout }) {
                                                     )}
                                                 </div>
                                             ) : message.reply_count > 0 ? (
-                                                <div className="h-5 flex items-center justify-center opacity-40">
+                                                <div className="h-5 flex items-center justify-center pl-1 w-full opacity-40 mt-0.4">
                                                     <svg className="w-4 h-4 text-rose-quartz dark:text-dark-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.174 0-2.3-.183-3.352-.518L3 21l1.424-4.272C3.515 15.293 3 13.693 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                                     </svg>
@@ -861,16 +861,24 @@ function Chat({ onLogout }) {
                                                     <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
                                                         {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
+                                                    {isFirstInGroup && message.reply_count > 0 && (
+                                                        <div className="flex items-center gap-1 text-rose-quartz dark:text-dark-text-secondary">
+                                                            <span className="opacity-40 text-xs">•</span>
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.174 0-2.3-.183-3.352-.518L3 21l1.424-4.272C3.515 15.293 3 13.693 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                            </svg>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
 
-                                            <div className="flex items-start gap-2">
+                                            <div className="flex items-center gap-2">
                                                 <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
                                                     {message.content}
                                                 </div>
                                                 
                                                 {/* Message Actions */}
-                                                <div className="flex items-center gap-2 mt-0.5">
+                                                <div className={`flex items-center gap-2 ${isFirstInGroup ? 'mt-0' : ''}`}>
                                                     {(!message.file_attachments || message.file_attachments.length === 0) && 
                                                      message.sender?.id !== CHATTERBOT_ID && 
                                                      currentDMId !== CHATTERBOT_ID && 
