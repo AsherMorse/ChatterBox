@@ -71,10 +71,10 @@ function SearchBar({ onSearch, searchResults, onMessageClick }) {
                                             <img
                                                 src={message.sender.avatar_url}
                                                 alt={message.sender.username}
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-cover rounded-full"
                                             />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                                            <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary rounded-full">
                                                 {message.sender?.username?.[0]?.toUpperCase() || '?'}
                                             </div>
                                         )}

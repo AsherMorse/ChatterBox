@@ -787,61 +787,54 @@ function Chat({ onLogout }) {
                                         key={message.id}
                                         ref={el => messageRefs.current[message.id] = el}
                                         className={`
-                                            group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-secondary rounded-xl 
+                                            group flex items-start gap-3 hover:bg-alice-blue dark:hover:bg-dark-bg-secondary rounded-xl 
                                             ${!isFirstInGroup ? '-mt-1' : 'mt-1'}
                                             ${isAvatarSender(message.sender) ? 'bg-emerald/5' : ''}
-                                            py-0.5 px-3 transition-all duration-200
+                                            py-0.5 px-2 transition-all duration-200
                                         `}
                                     >
-                                        <div className="w-9 flex-shrink-0 relative h-0">
-                                            {isFirstInGroup && (
-                                                <div className="w-9 h-9 absolute">
-                                                    <div className="relative">
-                                                        {message.sender?.avatar_url ? (
-                                                            <>
-                                                                <img
-                                                                    src={message.sender.avatar_url}
-                                                                    alt={message.sender.username}
-                                                                    className={`w-full h-full object-cover rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden ${
-                                                                        isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
-                                                                    }`}
-                                                                />
-                                                                {isAvatarSender(message.sender) && (
-                                                                    <div className="absolute -bottom-1 -right-1 bg-emerald text-white rounded-full p-1 shadow-sm">
-                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                                                        </svg>
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <div className={`w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden ${
-                                                                isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
-                                                            }`}>
-                                                                {message.sender?.username?.[0]?.toUpperCase() || '?'}
-                                                                {isAvatarSender(message.sender) && (
-                                                                    <div className="absolute -bottom-1 -right-1 bg-emerald text-white rounded-full p-1 shadow-sm">
-                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                                                        </svg>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                        {/* Avatar Column */}
+                                        <div className="flex-shrink-0 w-9">
+                                            {isFirstInGroup ? (
+                                                <div className="relative">
+                                                    {message.sender?.avatar_url ? (
+                                                        <div className={`relative w-9 h-9 rounded-full overflow-hidden bg-powder-blue dark:bg-dark-border ${
+                                                            isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
+                                                        }`}>
+                                                            <img
+                                                                src={message.sender.avatar_url}
+                                                                alt={message.sender.username}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className={`relative w-9 h-9 flex items-center justify-center text-base font-medium text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border ${
+                                                            isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
+                                                        }`}>
+                                                            {message.sender?.username?.[0]?.toUpperCase() || '?'}
+                                                        </div>
+                                                    )}
+                                                    {isAvatarSender(message.sender) && (
+                                                        <div className="absolute -bottom-0.5 -right-0.5 bg-emerald text-white rounded-full p-1 shadow-sm">
+                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                            </svg>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                            {!isFirstInGroup && message.reply_count > 0 && (
-                                                <div className="absolute top-[0.15rem] w-9 flex items-center justify-center">
-                                                    <svg className="w-4 h-4 text-rose-quartz dark:text-dark-text-secondary opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            ) : message.reply_count > 0 ? (
+                                                <div className="h-5 flex items-center justify-center opacity-40">
+                                                    <svg className="w-4 h-4 text-rose-quartz dark:text-dark-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.174 0-2.3-.183-3.352-.518L3 21l1.424-4.272C3.515 15.293 3 13.693 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                                     </svg>
                                                 </div>
-                                            )}
+                                            ) : null}
                                         </div>
-                                        <div className="flex-1 min-w-0 ml-2.5">
+
+                                        {/* Message Content */}
+                                        <div className="flex-1 min-w-0">
                                             {isFirstInGroup && (
-                                                <div className="flex items-baseline gap-1.5">
+                                                <div className="flex items-baseline gap-2 mb-0.5">
                                                     <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
                                                         {isAvatarSender(message.sender) 
                                                             ? formatAvatarDisplayName(message.sender)
@@ -855,82 +848,69 @@ function Chat({ onLogout }) {
                                                             BOT
                                                         </span>
                                                     )}
-                                                    <div className="flex items-center gap-1 text-xs text-rose-quartz dark:text-dark-text-secondary">
-                                                        <span>
-                                                            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                        {message.reply_count > 0 && (
-                                                            <>
-                                                                <span className="opacity-40">•</span>
-                                                                <svg className="w-3.5 h-3.5 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.174 0-2.3-.183-3.352-.518L3 21l1.424-4.272C3.515 15.293 3 13.693 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                                                </svg>
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                    <span className="text-xs text-rose-quartz dark:text-dark-text-secondary">
+                                                        {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
                                                 </div>
                                             )}
-                                            <div className="flex flex-col">
-                                                <div className="flex items-start gap-2 group -mt-0.5">
-                                                    <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary mt-0.5">
-                                                        {message.content}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        {/* Only show reactions for regular messages (not ChatterBot or messages in ChatterBot chat) */}
-                                                        {(!message.file_attachments || message.file_attachments.length === 0) && 
-                                                         message.sender?.id !== CHATTERBOT_ID && 
-                                                         currentDMId !== CHATTERBOT_ID && (
-                                                            <div className="flex-shrink-0">
-                                                                <div id={`message-reactions-${message.id}`} className="flex-shrink-0">
-                                                                    <MessageReactions 
-                                                                        messageId={message.id}
-                                                                        currentUserId={currentUser.id}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {/* Reply in Thread button (not for ChatterBot messages or messages in ChatterBot chat) */}
-                                                        {message.sender?.id !== CHATTERBOT_ID && currentDMId !== CHATTERBOT_ID && (
-                                                            <button
-                                                                key={`reply-${message.id}`}
-                                                                className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
-                                                                onClick={() => handleThreadReply(message)}
-                                                                title="Reply in Thread"
-                                                            >
-                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                                                </svg>
-                                                                {message.reply_count > 0 && (
-                                                                    <>
-                                                                        <span className="opacity-40 text-xs">•</span>
-                                                                        <span className="text-xs">
-                                                                            {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
-                                                                        </span>
-                                                                    </>
-                                                                )}
-                                                            </button>
-                                                        )}
-                                                    </div>
+
+                                            <div className="flex items-start gap-2">
+                                                <div className="prose prose-sm max-w-none text-sm leading-5 text-gunmetal dark:text-dark-text-primary">
+                                                    {message.content}
                                                 </div>
-                                                {/* Render file attachments */}
-                                                {message.file_attachments && message.file_attachments.length > 0 && (
-                                                    <div className="mt-0.5 flex flex-col items-center w-full">
-                                                        {message.file_attachments.map((attachment, index) => (
-                                                            <div key={index} className="flex justify-center w-full">
-                                                                <FileAttachment 
-                                                                    attachment={{
-                                                                        fileName: attachment.file_name,
-                                                                        fileType: attachment.file_type,
-                                                                        fileSize: attachment.file_size,
-                                                                        fileUrl: attachment.file_url,
-                                                                        thumbnailUrl: attachment.thumbnail_url
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                
+                                                {/* Message Actions */}
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    {(!message.file_attachments || message.file_attachments.length === 0) && 
+                                                     message.sender?.id !== CHATTERBOT_ID && 
+                                                     currentDMId !== CHATTERBOT_ID && (
+                                                        <div className="flex-shrink-0">
+                                                            <MessageReactions 
+                                                                messageId={message.id}
+                                                                currentUserId={currentUser.id}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {message.sender?.id !== CHATTERBOT_ID && currentDMId !== CHATTERBOT_ID && (
+                                                        <button
+                                                            className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                                                            onClick={() => handleThreadReply(message)}
+                                                            title="Reply in Thread"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                            </svg>
+                                                            {message.reply_count > 0 && (
+                                                                <>
+                                                                    <span className="opacity-40 text-xs">•</span>
+                                                                    <span className="text-xs">
+                                                                        {message.reply_count} {message.reply_count === 1 ? 'reply' : 'replies'}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
+
+                                            {/* File Attachments */}
+                                            {message.file_attachments && message.file_attachments.length > 0 && (
+                                                <div className="mt-2 flex flex-col gap-2">
+                                                    {message.file_attachments.map((attachment, index) => (
+                                                        <div key={index} className="flex justify-start w-full">
+                                                            <FileAttachment 
+                                                                attachment={{
+                                                                    fileName: attachment.file_name,
+                                                                    fileType: attachment.file_type,
+                                                                    fileSize: attachment.file_size,
+                                                                    fileUrl: attachment.file_url,
+                                                                    thumbnailUrl: attachment.thumbnail_url
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -1010,7 +990,7 @@ function Chat({ onLogout }) {
                                                 onClick={() => {
                                                     setMessages([{
                                                         id: `welcome-${Date.now()}`,
-                                                        content: "👋 Hi! I'm ChatterBot, your AI assistant for ChatterBox. I can help you find information from your chat history and answer questions about past conversations. Feel free to ask me anything!",
+                                                        content: "�� Hi! I'm ChatterBot, your AI assistant for ChatterBox. I can help you find information from your chat history and answer questions about past conversations. Feel free to ask me anything!",
                                                         created_at: new Date().toISOString(),
                                                         sender: {
                                                             id: CHATTERBOT_ID,

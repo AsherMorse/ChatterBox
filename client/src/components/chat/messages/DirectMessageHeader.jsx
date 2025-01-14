@@ -34,10 +34,10 @@ function DirectMessageHeader({ user }) {
                         <img
                             src={user.avatar_url}
                             alt={user.username}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover rounded-full"
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary">
+                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary rounded-full">
                             {user.username[0].toUpperCase()}
                         </div>
                     )}

@@ -165,10 +165,10 @@ function DirectMessageList({ onDMSelect, selectedDMId }) {
                                     <img
                                         src={otherUser.avatar_url}
                                         alt={otherUser.username}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover rounded-full"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-sm">
+                                    <div className="w-full h-full flex items-center justify-center text-sm rounded-full">
                                         {otherUser.username[0].toUpperCase()}
                                     </div>
                                 )}
