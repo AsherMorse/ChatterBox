@@ -173,25 +173,22 @@ export async function generateAvatarResponse(message, userHistory, userInfo) {
             .join('\n');
 
         // Analyze user's writing style from history
-        const writingStyle = analyzeWritingStyle(userHistory);
-        if (!writingStyle) {
-            throw new AvatarServiceError(
-                'Failed to analyze writing style',
-                ErrorTypes.STYLE_ERROR,
-                { historyLength: userHistory.length }
-            );
-        }
+        const writingStyle = userHistory.length > 0 ? 
+            analyzeWritingStyle(userHistory) : 
+            'uses a natural, conversational tone';
 
         // Construct the messages using LangChain message objects
         const messages = [
             new SystemMessage({
-                content: `You are now impersonating ${userInfo.username}. Based on their chat history, they ${writingStyle}. 
+                content: `You are now impersonating ${userInfo.username}. ${userHistory.length > 0 ? 
+                    `Based on their chat history, they ${writingStyle}.` : 
+                    'Respond in a natural, conversational way.'} 
                          Maintain this style while responding naturally and authentically. Keep responses concise and in character.
                          Never mention that you are an AI or that you are impersonating someone.
                          Avoid any harmful, offensive, or inappropriate content.`
             }),
             new HumanMessage({
-                content: `Previous conversations:\n${formattedHistory}\n\nRespond to: ${message}`
+                content: `${userHistory.length > 0 ? `Previous conversations:\n${formattedHistory}\n\n` : ''}Respond to: ${message}`
             })
         ];
 

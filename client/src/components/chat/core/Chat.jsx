@@ -330,6 +330,7 @@ function Chat({ onLogout }) {
 
         const messageContent = newMessage.trim();
         setNewMessage(''); // Clear message immediately after validation
+        setStagedFiles([]); // Clear staged files
 
         // Clear typing indicator immediately before sending
         if (typingChannelRef.current) {
@@ -340,92 +341,95 @@ function Chat({ onLogout }) {
         }
 
         try {
-            // Send message first
             let sentMessage;
             
-            if (currentChannelId) {
-                const message = {
-                    content: messageContent,
-                    channel_id: currentChannelId
-                };
-                sentMessage = await sendMessage(message);
-            } else if (currentDMId) {
-                // Check for @avatar command in DMs only
-                const isAvatarCommand = messageContent.toLowerCase().startsWith('@avatar');
-                if (isAvatarCommand) {
-                    const strippedMessage = messageContent.replace(/^@avatar\s*/i, '').trim();
-                    if (!strippedMessage) return;
+            // Check if this is an avatar command
+            if (messageContent.startsWith('@avatar')) {
+                if (!currentDMId) {
+                    console.error('Avatar commands can only be used in DMs');
+                    return;
+                }
 
-                    try {
-                        const avatarMessage = await sendAvatarMessage(
-                            currentDMId,
-                            strippedMessage,
-                            currentDMConversation.users.find(u => u.id !== currentUser.id)
-                        );
-                        setMessages(prev => [...prev, avatarMessage]);
-                    } catch (error) {
-                        console.error('Error sending avatar message:', error);
-                        // Handle error (show notification, etc.)
-                    }
-                } else {
-                    // Handle ChatterBot messages
-                    if (currentDMId === CHATTERBOT_ID) {
-                        setIsWaitingForBot(true);
-                        // Add user's message right away
-                        const userMessage = {
-                            id: Date.now().toString(),
-                            content: messageContent,
-                            created_at: new Date().toISOString(),
-                            sender: currentUser,
-                            channel_id: currentChannelId,
-                            channel_name: currentChannel?.name
-                        };
+                const strippedMessage = messageContent.replace(/^@avatar\s+/, '').trim();
+                if (!strippedMessage) {
+                    console.error('Please include a message after @avatar');
+                    return;
+                }
 
-                        // Get conversation history excluding welcome message
-                        const conversationHistory = messages
-                            .filter(msg => msg.id !== 'welcome')
-                            .map(msg => ({
-                                ...msg,
-                                content: msg.content || '',
-                                sender: msg.sender || currentUser,
-                                channel_id: msg.channel_id || currentChannelId,
-                                channel_name: msg.channel_name || currentChannel?.name
-                            }));
-                        
-                        setMessages(prev => [...prev, userMessage]);
-                        
-                        // Show typing indicator
-                        setIsChatterbotTyping(true);
-                        
-                        // Send message with full conversation history and channel context
-                        sendChatterBotMessage(messageContent, [...conversationHistory, userMessage], true)
-                            .then(botResponse => {
-                                if (botResponse) {
-                                    setMessages(prev => [...prev, botResponse]);
-                                    // Add a small delay before hiding the typing indicator
-                                    setTimeout(() => {
-                                        setIsChatterbotTyping(false);
-                                        setIsWaitingForBot(false);
-                                    }, 300);
-                                }
-                            })
-                            .catch(error => {
-                                setIsChatterbotTyping(false);
-                                setIsWaitingForBot(false);
-                                console.error('Error getting bot response:', error);
-                            });
-                    } else {
-                        // Normal DM message flow for non-ChatterBot messages
-                        const message = {
-                            content: messageContent,
-                            dm_id: currentDMId
-                        };
-                        sentMessage = await sendMessage(message);
+                try {
+                    // Get the DM conversation to find the other user
+                    const conversation = await getDMConversation(currentDMId);
+                    const otherUser = conversation.users.find(u => u.id !== currentUser.id);
+                    
+                    if (!otherUser) {
+                        console.error('Could not find the other user in this DM');
+                        return;
                     }
+
+                    // Send the avatar message
+                    await sendAvatarMessage(currentDMId, strippedMessage, otherUser);
+                    return;
+                } catch (error) {
+                    console.error('Error sending avatar message:', error);
+                    return;
                 }
             }
 
-            // Create file attachments for staged files
+            // Handle normal messages
+            if (currentChannelId) {
+                sentMessage = await sendMessage({
+                    content: messageContent,
+                    channel_id: currentChannelId
+                });
+            } else if (currentDMId) {
+                if (currentDMId === CHATTERBOT_ID) {
+                    // Handle ChatterBot messages
+                    setIsChatterbotTyping(true);
+                    setIsWaitingForBot(true);
+                    
+                    const userMessage = {
+                        content: messageContent,
+                        sender: currentUser,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    // Add user message to the conversation
+                    setMessages(prev => [...prev, userMessage]);
+                    
+                    // Get conversation history
+                    const conversationHistory = messages
+                        .slice(-10) // Get last 10 messages for context
+                        .map(msg => ({
+                            role: msg.sender.id === currentUser.id ? 'user' : 'assistant',
+                            content: msg.content
+                        }));
+                    
+                    // Send message with full conversation history and channel context
+                    sendChatterBotMessage(messageContent, [...conversationHistory, userMessage], true)
+                        .then(botResponse => {
+                            if (botResponse) {
+                                // Don't manually add the message - it will come through the realtime subscription
+                                setTimeout(() => {
+                                    setIsChatterbotTyping(false);
+                                    setIsWaitingForBot(false);
+                                }, 300);
+                            }
+                        })
+                        .catch(error => {
+                            setIsChatterbotTyping(false);
+                            setIsWaitingForBot(false);
+                            console.error('Error getting bot response:', error);
+                        });
+                } else {
+                    // Normal DM message
+                    sentMessage = await sendMessage({
+                        content: messageContent,
+                        dm_id: currentDMId
+                    });
+                }
+            }
+
+            // Handle file attachments for normal messages
             if (stagedFiles.length > 0 && sentMessage) {
                 const attachmentPromises = stagedFiles.map(file => 
                     createFileAttachment({
@@ -434,24 +438,8 @@ function Chat({ onLogout }) {
                     })
                 );
                 
-                // Wait for all attachments to be created
-                const createdAttachments = await Promise.all(attachmentPromises);
-                
-                // Update the message with attachments
-                const updatedMessage = {
-                    ...sentMessage,
-                    file_attachments: createdAttachments
-                };
-                
-                // Update the message in the state
-                setMessages(prev => prev.map(msg => 
-                    msg.id === sentMessage.id ? updatedMessage : msg
-                ));
-
-                // Clear staged files after successful upload
-                setStagedFiles([]);
+                await Promise.all(attachmentPromises);
             }
-
         } catch (error) {
             console.error('Error sending message:', error);
         }
@@ -782,23 +770,46 @@ function Chat({ onLogout }) {
                                         className={`
                                             group flex items-start hover:bg-alice-blue dark:hover:bg-dark-bg-secondary rounded-xl 
                                             ${!isFirstInGroup ? '-mt-1' : 'mt-1'}
+                                            ${isAvatarSender(message.sender) ? 'bg-emerald/5' : ''}
                                             py-0.5 px-3 transition-all duration-200
                                         `}
                                     >
                                         <div className="w-9 flex-shrink-0 relative h-0">
                                             {isFirstInGroup && (
                                                 <div className="w-9 h-9 absolute">
-                                                    {message.sender?.avatar_url ? (
-                                                        <img
-                                                            src={message.sender.avatar_url}
-                                                            alt={message.sender.username}
-                                                            className="w-full h-full object-cover rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden">
-                                                            {message.sender?.username?.[0]?.toUpperCase() || '?'}
-                                                        </div>
-                                                    )}
+                                                    <div className="relative">
+                                                        {message.sender?.avatar_url ? (
+                                                            <>
+                                                                <img
+                                                                    src={message.sender.avatar_url}
+                                                                    alt={message.sender.username}
+                                                                    className={`w-full h-full object-cover rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden ${
+                                                                        isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
+                                                                    }`}
+                                                                />
+                                                                {isAvatarSender(message.sender) && (
+                                                                    <div className="absolute -bottom-1 -right-1 bg-emerald text-white rounded-full p-1 shadow-sm">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                                        </svg>
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <div className={`w-full h-full flex items-center justify-center text-sm text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border overflow-hidden ${
+                                                                isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
+                                                            }`}>
+                                                                {message.sender?.username?.[0]?.toUpperCase() || '?'}
+                                                                {isAvatarSender(message.sender) && (
+                                                                    <div className="absolute -bottom-1 -right-1 bg-emerald text-white rounded-full p-1 shadow-sm">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                                        </svg>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                             {!isFirstInGroup && message.reply_count > 0 && (
@@ -813,8 +824,18 @@ function Chat({ onLogout }) {
                                             {isFirstInGroup && (
                                                 <div className="flex items-baseline gap-1.5">
                                                     <span className="font-bold text-base text-gunmetal dark:text-dark-text-primary">
-                                                        {message.sender?.username || 'Unknown User'}
+                                                        {isAvatarSender(message.sender) 
+                                                            ? formatAvatarDisplayName(message.sender)
+                                                            : message.sender?.username || 'Unknown User'}
                                                     </span>
+                                                    {isAvatarSender(message.sender) && (
+                                                        <span 
+                                                            className="px-1.5 py-0.5 text-xs font-medium bg-emerald/10 text-emerald rounded"
+                                                            title="AI-generated message"
+                                                        >
+                                                            BOT
+                                                        </span>
+                                                    )}
                                                     <div className="flex items-center gap-1 text-xs text-rose-quartz dark:text-dark-text-secondary">
                                                         <span>
                                                             {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

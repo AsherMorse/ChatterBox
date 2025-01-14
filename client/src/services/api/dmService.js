@@ -130,37 +130,18 @@ export const createDMConversation = async (userId) => {
 };
 
 /**
- * Get the target user for avatar command in a DM context
- * @param {string} dmId - The ID of the DM conversation
- * @returns {Promise<Object>} The target user object
- * @throws {Error} If the DM doesn't exist or user is not authorized
+ * Get target user information for avatar command
+ * @param {string} username - The username of the target user
+ * @returns {Promise<Object>} Target user information
  */
-export const getAvatarTargetUser = async (dmId) => {
+export const getAvatarTargetUser = async (username) => {
     try {
-        // Don't allow avatar commands with ChatterBot
-        if (dmId === CHATTERBOT_ID) {
-            throw new Error('Avatar commands are not supported with ChatterBot');
+        // Get user by username
+        const response = await api.get(`/users/by-username/${username}`);
+        if (!response.data) {
+            throw new Error('User not found');
         }
-
-        // Get the DM conversation
-        const conversation = await getDMConversation(dmId);
-        if (!conversation) {
-            throw new Error('DM conversation not found');
-        }
-
-        // Get the current user
-        const currentUser = getUser();
-        if (!currentUser) {
-            throw new Error('User not authenticated');
-        }
-
-        // Find the other user in the conversation
-        const targetUser = conversation.users.find(u => u.id !== currentUser.id);
-        if (!targetUser) {
-            throw new Error('Target user not found in conversation');
-        }
-
-        return targetUser;
+        return response.data;
     } catch (error) {
         console.error('Error getting avatar target user:', error);
         throw error;
@@ -407,7 +388,7 @@ export const analyzeWritingPatterns = (messages) => {
  */
 export async function sendAvatarMessage(dmId, message, targetUser) {
     try {
-        const response = await api.post('/api/avatar/message', {
+        const response = await api.post('/avatar/message', {
             message,
             targetUserId: targetUser.id,
             dmId
@@ -415,9 +396,18 @@ export async function sendAvatarMessage(dmId, message, targetUser) {
 
         // Ensure the response has proper sender construction
         if (response.data) {
-            response.data.sender = createAvatarSender(targetUser, {
-                metadata: response.data.metadata
-            });
+            // Create sender object with bot metadata
+            response.data.sender = {
+                ...targetUser,
+                isBot: true,
+                isAvatar: true,
+                username: `${targetUser.username} (Avatar)`,
+                originalUser: {
+                    id: targetUser.id,
+                    username: targetUser.username,
+                    avatar_url: targetUser.avatar_url
+                }
+            };
         }
 
         return response.data;

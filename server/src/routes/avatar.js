@@ -137,12 +137,21 @@ router.post('/message', authenticateJWT, async (req, res) => {
                 content: response.content,
                 sender_id: targetUserId,
                 dm_id: req.body.dmId,
-                channel_id: req.body.channelId
+                metadata: {
+                    isBot: true,
+                    isAvatar: true,
+                    originalUser: {
+                        id: targetUserId,
+                        username: userInfo.username,
+                        avatar_url: userInfo.avatar_url
+                    }
+                }
             })
             .select()
             .single();
 
         if (messageError) {
+            console.error('Message creation error:', messageError);
             throw new Error('Failed to create message record');
         }
 

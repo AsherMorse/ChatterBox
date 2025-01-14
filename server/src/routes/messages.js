@@ -58,17 +58,12 @@ router.post('/', authenticateJWT, async (req, res) => {
             sender_id,
             channel_id,
             dm_id,
-            sender: sender // Include sender info directly
+            metadata: req.body.metadata // Include metadata if provided
         };
 
         const { data: message, error: messageError } = await supabase
             .from('messages')
-            .insert({
-                content,
-                sender_id,
-                channel_id,
-                dm_id
-            })
+            .insert(messageData)
             .select(`
                 *,
                 sender:sender_id(id, username, avatar_url)
