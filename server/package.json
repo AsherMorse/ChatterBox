@@ -7,6 +7,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "embed:dev": "node src/scripts/embedMessages.js",
+    "embed:prod": "NODE_ENV=production node src/scripts/embedMessages.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
