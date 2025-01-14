@@ -23,13 +23,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.options('*', cors()); // Enable pre-flight for all routes
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'https://chatter-box-client-five.vercel.app',
-        'https://chatter-box-client-five.vercel.app/'
-    ],
+    origin: (origin, callback) => {
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'https://chatter-box-client-five.vercel.app',
+            'https://chatter-box-client-five.vercel.app/'
+        ];
+        
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        
+        return callback(null, origin);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
