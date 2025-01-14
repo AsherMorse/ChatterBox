@@ -366,19 +366,14 @@ function Chat({ onLogout }) {
                         return;
                     }
 
-                    // Send the avatar message
-                    const userMessage = {
+                    // First send the user's message as a regular DM
+                    await sendMessage({
                         content: strippedMessage,
-                        sender: currentUser,
-                        created_at: new Date().toISOString()
-                    };
+                        dm_id: currentDMId
+                    });
                     
-                    // Add user message to the conversation
-                    setMessages(prev => [...prev, userMessage]);
-                    
-                    // Send the avatar message and get response
+                    // Then send the avatar message
                     await sendAvatarMessage(currentDMId, strippedMessage, otherUser);
-                    // Don't manually add the response - it will come through the realtime subscription
                     return;
                 } catch (error) {
                     console.error('Error sending avatar message:', error);
@@ -784,7 +779,7 @@ function Chat({ onLogout }) {
 
                                 return (
                                     <div
-                                        key={message.id}
+                                        key={`${message.id}-${index}`}
                                         ref={el => messageRefs.current[message.id] = el}
                                         className={`
                                             group flex items-start gap-3 hover:bg-alice-blue dark:hover:bg-dark-bg-secondary rounded-xl 
@@ -798,27 +793,38 @@ function Chat({ onLogout }) {
                                             {isFirstInGroup ? (
                                                 <div className="relative">
                                                     {message.sender?.avatar_url ? (
-                                                        <div className={`relative w-9 h-9 rounded-full overflow-hidden bg-powder-blue dark:bg-dark-border ${
-                                                            isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
-                                                        }`}>
-                                                            <img
-                                                                src={message.sender.avatar_url}
-                                                                alt={message.sender.username}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        </div>
+                                                        <>
+                                                            <div className={`relative w-9 h-9 rounded-full overflow-hidden bg-powder-blue dark:bg-dark-border ${
+                                                                isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
+                                                            }`}>
+                                                                <img
+                                                                    src={message.sender.avatar_url}
+                                                                    alt={message.sender.username}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </div>
+                                                            {isAvatarSender(message.sender) && (
+                                                                <div className="absolute -bottom-0.5 -right-0.5 bg-emerald text-white rounded-full p-1 shadow-sm">
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                                    </svg>
+                                                                </div>
+                                                            )}
+                                                        </>
                                                     ) : (
-                                                        <div className={`relative w-9 h-9 flex items-center justify-center text-base font-medium text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border ${
-                                                            isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
-                                                        }`}>
-                                                            {message.sender?.username?.[0]?.toUpperCase() || '?'}
-                                                        </div>
-                                                    )}
-                                                    {isAvatarSender(message.sender) && (
-                                                        <div className="absolute -bottom-0.5 -right-0.5 bg-emerald text-white rounded-full p-1 shadow-sm">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                                            </svg>
+                                                        <div className="relative">
+                                                            <div className={`w-9 h-9 flex items-center justify-center text-base font-medium text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border ${
+                                                                isAvatarSender(message.sender) ? 'ring-2 ring-emerald ring-offset-2 ring-offset-white dark:ring-offset-dark-bg-primary' : ''
+                                                            }`}>
+                                                                {message.sender?.username?.[0]?.toUpperCase() || '?'}
+                                                            </div>
+                                                            {isAvatarSender(message.sender) && (
+                                                                <div className="absolute -bottom-0.5 -right-0.5 bg-emerald text-white rounded-full p-1 shadow-sm">
+                                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                                    </svg>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -863,7 +869,8 @@ function Chat({ onLogout }) {
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     {(!message.file_attachments || message.file_attachments.length === 0) && 
                                                      message.sender?.id !== CHATTERBOT_ID && 
-                                                     currentDMId !== CHATTERBOT_ID && (
+                                                     currentDMId !== CHATTERBOT_ID && 
+                                                     message.id && (
                                                         <div className="flex-shrink-0">
                                                             <MessageReactions 
                                                                 messageId={message.id}
@@ -871,8 +878,9 @@ function Chat({ onLogout }) {
                                                             />
                                                         </div>
                                                     )}
-                                                    {message.sender?.id !== CHATTERBOT_ID && currentDMId !== CHATTERBOT_ID && (
+                                                    {message.sender?.id !== CHATTERBOT_ID && currentDMId !== CHATTERBOT_ID && message.id && (
                                                         <button
+                                                            key={`reply-${message.id}`}
                                                             className="flex items-center gap-1 p-1 text-rose-quartz hover:text-emerald hover:bg-alice-blue dark:hover:bg-dark-bg-primary rounded-lg transition-colors duration-200 opacity-0 group-hover:opacity-100"
                                                             onClick={() => handleThreadReply(message)}
                                                             title="Reply in Thread"
