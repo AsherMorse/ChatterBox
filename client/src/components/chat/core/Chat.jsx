@@ -367,7 +367,18 @@ function Chat({ onLogout }) {
                     }
 
                     // Send the avatar message
+                    const userMessage = {
+                        content: strippedMessage,
+                        sender: currentUser,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    // Add user message to the conversation
+                    setMessages(prev => [...prev, userMessage]);
+                    
+                    // Send the avatar message and get response
                     await sendAvatarMessage(currentDMId, strippedMessage, otherUser);
+                    // Don't manually add the response - it will come through the realtime subscription
                     return;
                 } catch (error) {
                     console.error('Error sending avatar message:', error);
@@ -408,7 +419,15 @@ function Chat({ onLogout }) {
                     sendChatterBotMessage(messageContent, [...conversationHistory, userMessage], true)
                         .then(botResponse => {
                             if (botResponse) {
-                                // Don't manually add the message - it will come through the realtime subscription
+                                // Add the bot's response to the messages
+                                setMessages(prev => [...prev, {
+                                    ...botResponse,
+                                    sender: {
+                                        id: CHATTERBOT_ID,
+                                        username: 'ChatterBot',
+                                        isBot: true
+                                    }
+                                }]);
                                 setTimeout(() => {
                                     setIsChatterbotTyping(false);
                                     setIsWaitingForBot(false);
@@ -990,7 +1009,7 @@ function Chat({ onLogout }) {
                                                 type="button"
                                                 onClick={() => {
                                                     setMessages([{
-                                                        id: 'welcome',
+                                                        id: `welcome-${Date.now()}`,
                                                         content: "👋 Hi! I'm ChatterBot, your AI assistant for ChatterBox. I can help you find information from your chat history and answer questions about past conversations. Feel free to ask me anything!",
                                                         created_at: new Date().toISOString(),
                                                         sender: {
