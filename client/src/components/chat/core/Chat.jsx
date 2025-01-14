@@ -7,7 +7,16 @@ import CreateChannelModal from '../channels/CreateChannelModal';
 import CreateDMModal from '../messages/CreateDMModal';
 import DirectMessageHeader from '../messages/DirectMessageHeader';
 import { getMessages, sendMessage, getMessageSender } from '../../../services/api/messageService';
-import { getDMMessages, sendDMMessage, getDMConversation, sendChatterBotMessage } from '../../../services/api/dmService';
+import { 
+    getDMMessages, 
+    sendDMMessage, 
+    getDMConversation, 
+    sendChatterBotMessage, 
+    getAvatarTargetUser, 
+    getAvatarConversationHistory,
+    analyzeWritingPatterns 
+} from '../../../services/api/dmService';
+import { buildAvatarPrompt } from '../../../services/api/avatarService';
 import { getChannel } from '../../../services/api/channelService';
 import realtimeService from '../../../services/realtime/realtimeService';
 import Header from '../../common/Header';
@@ -351,9 +360,35 @@ function Chat({ onLogout }) {
                         return;
                     }
 
-                    // TODO: Handle avatar command with strippedMessage
-                    console.log('Avatar command detected with message:', strippedMessage);
-                    return;
+                    try {
+                        // Get the target user for the avatar command
+                        const targetUser = await getAvatarTargetUser(currentDMId);
+                        console.log('Avatar command target user:', targetUser);
+
+                        // Get the conversation history for context
+                        const conversationHistory = await getAvatarConversationHistory(currentDMId);
+                        console.log('Avatar command conversation history:', conversationHistory);
+                        
+                        // Analyze writing patterns
+                        const writingPatterns = analyzeWritingPatterns(conversationHistory);
+                        console.log('Writing patterns analysis:', writingPatterns);
+
+                        // Build the AI prompt
+                        const prompt = buildAvatarPrompt({
+                            message: strippedMessage,
+                            targetUser,
+                            conversationHistory,
+                            writingPatterns
+                        });
+                        console.log('Generated avatar prompt:', prompt);
+                        
+                        // TODO: Send prompt to AI service
+                        return;
+                    } catch (error) {
+                        console.error('Error handling avatar command:', error);
+                        // TODO: Show error to user in UI
+                        return;
+                    }
                 }
                 
                 // Handle ChatterBot messages

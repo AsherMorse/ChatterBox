@@ -629,4 +629,43 @@ router.post('/:messageId/thread', authenticateJWT, async (req, res) => {
     }
 });
 
+// Get all messages for a specific user
+router.get('/user/:userId', authenticateJWT, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { limit = 100, exclude_system = true, exclude_bots = true } = req.query;
+
+        // Build the query
+        let query = supabase
+            .from('messages')
+            .select(`
+                *,
+                sender:sender_id(id, username, avatar_url)
+            `)
+            .eq('sender_id', userId)
+            .order('created_at', { ascending: true })
+            .limit(limit);
+
+        // Add optional filters
+        if (exclude_system === 'true') {
+            query = query.eq('is_system_message', false);
+        }
+        if (exclude_bots === 'true') {
+            query = query.eq('is_bot', false);
+        }
+
+        const { data: messages, error } = await query;
+
+        if (error) {
+            console.error('Error fetching user messages:', error);
+            return res.status(500).json({ message: 'Error fetching messages' });
+        }
+
+        res.json(messages);
+    } catch (error) {
+        console.error('Error in user message retrieval:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export default router;
