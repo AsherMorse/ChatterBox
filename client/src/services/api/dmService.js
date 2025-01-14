@@ -1,6 +1,7 @@
 import api from './api';
 import { CHATTERBOT_ID, sendMessageToChatterBot } from './chatterbotService';
 import { getUser } from './auth';
+import { createAvatarSender } from '../avatar/senderService';
 
 // ChatterBot's welcome message
 const WELCOME_MESSAGE = {
@@ -395,4 +396,33 @@ export const analyzeWritingPatterns = (messages) => {
         console.error('Error analyzing writing patterns:', error);
         throw error;
     }
-}; 
+};
+
+/**
+ * Sends an avatar message in a DM
+ * @param {string} dmId - The DM channel ID
+ * @param {string} message - The message to send
+ * @param {Object} targetUser - The user to impersonate
+ * @returns {Promise<Object>} The sent message
+ */
+export async function sendAvatarMessage(dmId, message, targetUser) {
+    try {
+        const response = await api.post('/api/avatar/message', {
+            message,
+            targetUserId: targetUser.id,
+            dmId
+        });
+
+        // Ensure the response has proper sender construction
+        if (response.data) {
+            response.data.sender = createAvatarSender(targetUser, {
+                metadata: response.data.metadata
+            });
+        }
+
+        return response.data;
+    } catch (error) {
+        console.error('Error sending avatar message:', error);
+        throw error;
+    }
+} 

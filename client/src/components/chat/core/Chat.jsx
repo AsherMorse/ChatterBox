@@ -30,6 +30,8 @@ import UserStatusEditor from '../../sidebar/UserStatusEditor';
 import SearchBar from '../features/SearchBar';
 import ThreadSidebar from '../features/ThreadSidebar';
 import { CHATTERBOT_ID } from '../../../services/api/chatterbotService';
+import { isAvatarSender, formatAvatarDisplayName } from '../../../services/avatar/senderService';
+import { sendAvatarMessage } from '../../../services/api/dmService';
 
 function Chat({ onLogout }) {
     const [messages, setMessages] = useState([]);
@@ -351,99 +353,75 @@ function Chat({ onLogout }) {
                 // Check for @avatar command in DMs only
                 const isAvatarCommand = messageContent.toLowerCase().startsWith('@avatar');
                 if (isAvatarCommand) {
-                    // Strip @avatar prefix and trim whitespace
                     const strippedMessage = messageContent.replace(/^@avatar\s*/i, '').trim();
-                    
-                    // Validate the stripped message is not empty
-                    if (!strippedMessage) {
-                        console.warn('Empty message after stripping @avatar prefix');
-                        return;
-                    }
+                    if (!strippedMessage) return;
 
                     try {
-                        // Get the target user for the avatar command
-                        const targetUser = await getAvatarTargetUser(currentDMId);
-                        console.log('Avatar command target user:', targetUser);
-
-                        // Get the conversation history for context
-                        const conversationHistory = await getAvatarConversationHistory(currentDMId);
-                        console.log('Avatar command conversation history:', conversationHistory);
-                        
-                        // Analyze writing patterns
-                        const writingPatterns = analyzeWritingPatterns(conversationHistory);
-                        console.log('Writing patterns analysis:', writingPatterns);
-
-                        // Build the AI prompt
-                        const prompt = buildAvatarPrompt({
-                            message: strippedMessage,
-                            targetUser,
-                            conversationHistory,
-                            writingPatterns
-                        });
-                        console.log('Generated avatar prompt:', prompt);
-                        
-                        // TODO: Send prompt to AI service
-                        return;
+                        const avatarMessage = await sendAvatarMessage(
+                            currentDMId,
+                            strippedMessage,
+                            currentDMConversation.users.find(u => u.id !== currentUser.id)
+                        );
+                        setMessages(prev => [...prev, avatarMessage]);
                     } catch (error) {
-                        console.error('Error handling avatar command:', error);
-                        // TODO: Show error to user in UI
-                        return;
+                        console.error('Error sending avatar message:', error);
+                        // Handle error (show notification, etc.)
                     }
-                }
-                
-                // Handle ChatterBot messages
-                if (currentDMId === CHATTERBOT_ID) {
-                    setIsWaitingForBot(true);
-                    // Add user's message right away
-                    const userMessage = {
-                        id: Date.now().toString(),
-                        content: messageContent,
-                        created_at: new Date().toISOString(),
-                        sender: currentUser,
-                        channel_id: currentChannelId,
-                        channel_name: currentChannel?.name
-                    };
-
-                    // Get conversation history excluding welcome message
-                    const conversationHistory = messages
-                        .filter(msg => msg.id !== 'welcome')
-                        .map(msg => ({
-                            ...msg,
-                            content: msg.content || '',
-                            sender: msg.sender || currentUser,
-                            channel_id: msg.channel_id || currentChannelId,
-                            channel_name: msg.channel_name || currentChannel?.name
-                        }));
-                    
-                    setMessages(prev => [...prev, userMessage]);
-                    
-                    // Show typing indicator
-                    setIsChatterbotTyping(true);
-                    
-                    // Send message with full conversation history and channel context
-                    sendChatterBotMessage(messageContent, [...conversationHistory, userMessage], true)
-                        .then(botResponse => {
-                            if (botResponse) {
-                                setMessages(prev => [...prev, botResponse]);
-                                // Add a small delay before hiding the typing indicator
-                                setTimeout(() => {
-                                    setIsChatterbotTyping(false);
-                                    setIsWaitingForBot(false);
-                                }, 300);
-                            }
-                        })
-                        .catch(error => {
-                            setIsChatterbotTyping(false);
-                            setIsWaitingForBot(false);
-                            console.error('Error getting bot response:', error);
-                        });
                 } else {
-                    // Normal DM message flow for non-ChatterBot messages
-                    const message = {
-                        content: messageContent,
-                        dm_id: currentDMId
-                    };
-                    sentMessage = await sendMessage(message);
+                    // Handle ChatterBot messages
+                    if (currentDMId === CHATTERBOT_ID) {
+                        setIsWaitingForBot(true);
+                        // Add user's message right away
+                        const userMessage = {
+                            id: Date.now().toString(),
+                            content: messageContent,
+                            created_at: new Date().toISOString(),
+                            sender: currentUser,
+                            channel_id: currentChannelId,
+                            channel_name: currentChannel?.name
+                        };
+
+                        // Get conversation history excluding welcome message
+                        const conversationHistory = messages
+                            .filter(msg => msg.id !== 'welcome')
+                            .map(msg => ({
+                                ...msg,
+                                content: msg.content || '',
+                                sender: msg.sender || currentUser,
+                                channel_id: msg.channel_id || currentChannelId,
+                                channel_name: msg.channel_name || currentChannel?.name
+                            }));
+                        
+                        setMessages(prev => [...prev, userMessage]);
+                        
+                        // Show typing indicator
+                        setIsChatterbotTyping(true);
+                        
+                        // Send message with full conversation history and channel context
+                        sendChatterBotMessage(messageContent, [...conversationHistory, userMessage], true)
+                            .then(botResponse => {
+                                if (botResponse) {
+                                    setMessages(prev => [...prev, botResponse]);
+                                    // Add a small delay before hiding the typing indicator
+                                    setTimeout(() => {
+                                        setIsChatterbotTyping(false);
+                                        setIsWaitingForBot(false);
+                                    }, 300);
+                                }
+                            })
+                            .catch(error => {
+                                setIsChatterbotTyping(false);
+                                setIsWaitingForBot(false);
+                                console.error('Error getting bot response:', error);
+                            });
+                    } else {
+                        // Normal DM message flow for non-ChatterBot messages
+                        const message = {
+                            content: messageContent,
+                            dm_id: currentDMId
+                        };
+                        sentMessage = await sendMessage(message);
+                    }
                 }
             }
 
