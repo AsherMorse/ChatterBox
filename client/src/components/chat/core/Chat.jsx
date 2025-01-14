@@ -811,12 +811,12 @@ function Chat({ onLogout }) {
                                         `}
                                     >
                                         {/* Avatar Column */}
-                                        <div className="flex-shrink-0 w-9">
+                                        <div className="flex-shrink-0 w-10 flex items-start pt-1">
                                             {isFirstInGroup ? (
                                                 <div className="relative">
                                                     {message.sender?.avatar_url ? (
                                                         <>
-                                                            <div className={`relative w-8 h-8 rounded-full overflow-hidden bg-powder-blue dark:bg-dark-border`}>
+                                                            <div className={`relative w-9 h-9 rounded-full overflow-hidden bg-powder-blue dark:bg-dark-border`}>
                                                                 <img
                                                                     src={message.sender.avatar_url}
                                                                     alt={message.sender.username}
@@ -826,7 +826,7 @@ function Chat({ onLogout }) {
                                                         </>
                                                     ) : (
                                                         <div className="relative">
-                                                            <div className={`w-8 h-8 flex items-center justify-center text-sm font-medium text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border`}>
+                                                            <div className={`w-9 h-9 flex items-center justify-center text-sm font-medium text-gunmetal dark:text-dark-text-primary rounded-full bg-powder-blue dark:bg-dark-border`}>
                                                                 {message.sender?.username?.[0]?.toUpperCase() || '?'}
                                                             </div>
                                                         </div>
