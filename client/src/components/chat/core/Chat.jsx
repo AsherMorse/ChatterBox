@@ -317,6 +317,9 @@ function Chat({ onLogout }) {
         if (!newMessage.trim() && stagedFiles.length === 0) return;
         if (currentDMId === CHATTERBOT_ID && isWaitingForBot) return;
 
+        const messageContent = newMessage.trim();
+        setNewMessage(''); // Clear message immediately after validation
+
         // Clear typing indicator immediately before sending
         if (typingChannelRef.current) {
             realtimeService.stopTyping(typingChannelRef.current);
@@ -328,7 +331,6 @@ function Chat({ onLogout }) {
         try {
             // Send message first
             let sentMessage;
-            const messageContent = newMessage.trim();
             
             if (currentChannelId) {
                 const message = {
@@ -337,7 +339,24 @@ function Chat({ onLogout }) {
                 };
                 sentMessage = await sendMessage(message);
             } else if (currentDMId) {
-                // For ChatterBot, add user's message immediately
+                // Check for @avatar command in DMs only
+                const isAvatarCommand = messageContent.toLowerCase().startsWith('@avatar');
+                if (isAvatarCommand) {
+                    // Strip @avatar prefix and trim whitespace
+                    const strippedMessage = messageContent.replace(/^@avatar\s*/i, '').trim();
+                    
+                    // Validate the stripped message is not empty
+                    if (!strippedMessage) {
+                        console.warn('Empty message after stripping @avatar prefix');
+                        return;
+                    }
+
+                    // TODO: Handle avatar command with strippedMessage
+                    console.log('Avatar command detected with message:', strippedMessage);
+                    return;
+                }
+                
+                // Handle ChatterBot messages
                 if (currentDMId === CHATTERBOT_ID) {
                     setIsWaitingForBot(true);
                     // Add user's message right away
@@ -384,8 +403,12 @@ function Chat({ onLogout }) {
                             console.error('Error getting bot response:', error);
                         });
                 } else {
-                    // For regular DMs
-                    sentMessage = await sendDMMessage(currentDMId, messageContent);
+                    // Normal DM message flow for non-ChatterBot messages
+                    const message = {
+                        content: messageContent,
+                        dm_id: currentDMId
+                    };
+                    sentMessage = await sendMessage(message);
                 }
             }
 
@@ -416,7 +439,6 @@ function Chat({ onLogout }) {
                 setStagedFiles([]);
             }
 
-            setNewMessage('');
         } catch (error) {
             console.error('Error sending message:', error);
         }
