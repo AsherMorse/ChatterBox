@@ -4,6 +4,34 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Custom error types for avatar service
+export class AvatarServiceError extends Error {
+    constructor(message, type, details = {}) {
+        super(message);
+        this.name = 'AvatarServiceError';
+        this.type = type;
+        this.details = details;
+        this.timestamp = new Date().toISOString();
+    }
+}
+
+export const ErrorTypes = {
+    VALIDATION_ERROR: 'VALIDATION_ERROR',
+    AI_ERROR: 'AI_ERROR',
+    STYLE_ERROR: 'STYLE_ERROR',
+    CONTENT_ERROR: 'CONTENT_ERROR',
+    RATE_LIMIT_ERROR: 'RATE_LIMIT_ERROR'
+};
+
+// Response status tracking
+const responseStats = {
+    total: 0,
+    successful: 0,
+    failed: 0,
+    lastResponse: null,
+    errors: new Map() // Track error frequencies
+};
+
 // Initialize ChatGPT model for avatar impersonation
 const llm = new ChatOpenAI({
     openAIApiKey: process.env.OPENAI_API_KEY,
@@ -115,10 +143,30 @@ function sanitizeResponse(response) {
  * @param {string} message - The message to respond to
  * @param {Array} userHistory - Array of user's previous messages
  * @param {Object} userInfo - Information about the user being impersonated
- * @returns {Promise<string>} The AI-generated response
+ * @returns {Promise<Object>} The AI-generated response with status information
  */
 export async function generateAvatarResponse(message, userHistory, userInfo) {
+    responseStats.total++;
+    const startTime = Date.now();
+
     try {
+        // Input validation
+        if (!message?.trim()) {
+            throw new AvatarServiceError(
+                'Empty message received',
+                ErrorTypes.VALIDATION_ERROR,
+                { message }
+            );
+        }
+
+        if (!userInfo?.id || !userInfo?.username) {
+            throw new AvatarServiceError(
+                'Invalid user information',
+                ErrorTypes.VALIDATION_ERROR,
+                { userInfo }
+            );
+        }
+
         // Format user history for context
         const formattedHistory = userHistory
             .map(msg => `${msg.sender?.username || 'User'}: ${msg.content}`)
@@ -126,6 +174,13 @@ export async function generateAvatarResponse(message, userHistory, userInfo) {
 
         // Analyze user's writing style from history
         const writingStyle = analyzeWritingStyle(userHistory);
+        if (!writingStyle) {
+            throw new AvatarServiceError(
+                'Failed to analyze writing style',
+                ErrorTypes.STYLE_ERROR,
+                { historyLength: userHistory.length }
+            );
+        }
 
         // Construct the messages using LangChain message objects
         const messages = [
@@ -147,15 +202,73 @@ export async function generateAvatarResponse(message, userHistory, userInfo) {
         // Validate the response
         const validation = validateResponse(content, userInfo);
         if (!validation.isValid) {
-            throw new Error(`Invalid response: ${validation.error}`);
+            throw new AvatarServiceError(
+                `Invalid response: ${validation.error}`,
+                ErrorTypes.CONTENT_ERROR,
+                { content, validation }
+            );
         }
 
-        // Sanitize and return the validated response
-        return sanitizeResponse(content);
+        // Sanitize the validated response
+        const sanitizedResponse = sanitizeResponse(content);
+
+        // Update success stats
+        responseStats.successful++;
+        responseStats.lastResponse = {
+            timestamp: new Date().toISOString(),
+            processingTime: Date.now() - startTime,
+            status: 'success'
+        };
+
+        // Return success response with metadata
+        return {
+            content: sanitizedResponse,
+            metadata: {
+                status: 'success',
+                processingTime: Date.now() - startTime,
+                timestamp: new Date().toISOString(),
+                type: 'avatar_response',
+                userInfo: {
+                    id: userInfo.id,
+                    username: userInfo.username
+                },
+                stats: {
+                    historyLength: userHistory.length,
+                    responseLength: sanitizedResponse.length,
+                    writingStyle: writingStyle.split(', ')
+                }
+            }
+        };
 
     } catch (error) {
-        console.error('Error generating avatar response:', error);
-        throw new Error('Failed to generate avatar response');
+        // Update error stats
+        responseStats.failed++;
+        const errorType = error instanceof AvatarServiceError ? error.type : ErrorTypes.AI_ERROR;
+        responseStats.errors.set(errorType, (responseStats.errors.get(errorType) || 0) + 1);
+
+        // Update last response info
+        responseStats.lastResponse = {
+            timestamp: new Date().toISOString(),
+            processingTime: Date.now() - startTime,
+            status: 'error',
+            error: {
+                type: errorType,
+                message: error.message
+            }
+        };
+
+        // Rethrow with additional context if not already an AvatarServiceError
+        if (!(error instanceof AvatarServiceError)) {
+            throw new AvatarServiceError(
+                'Failed to generate avatar response',
+                ErrorTypes.AI_ERROR,
+                {
+                    originalError: error.message,
+                    processingTime: Date.now() - startTime
+                }
+            );
+        }
+        throw error;
     }
 }
 
@@ -208,4 +321,21 @@ function analyzeWritingStyle(messageHistory) {
     else styleTraits.push('maintains a more formal tone');
 
     return styleTraits.join(', ');
+}
+
+/**
+ * Get current response statistics
+ * @returns {Object} Current response statistics
+ */
+export function getResponseStats() {
+    return {
+        ...responseStats,
+        successRate: responseStats.total > 0 
+            ? (responseStats.successful / responseStats.total * 100).toFixed(2) + '%'
+            : '0%',
+        errorFrequency: Object.fromEntries(responseStats.errors),
+        averageSuccessRate: responseStats.total > 0
+            ? ((responseStats.successful / responseStats.total) * 100).toFixed(2) + '%'
+            : '0%'
+    };
 } 
