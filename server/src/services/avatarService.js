@@ -12,6 +12,105 @@ const llm = new ChatOpenAI({
 });
 
 /**
+ * Validates the content of an AI response
+ * @param {string} response - The AI-generated response
+ * @param {Object} userInfo - Information about the user being impersonated
+ * @returns {Object} Validation result with status and optional error message
+ */
+function validateResponse(response, userInfo) {
+    // Check for empty or whitespace-only responses
+    if (!response || !response.trim()) {
+        return {
+            isValid: false,
+            error: 'Empty response received'
+        };
+    }
+
+    // Check response length (prevent extremely long responses)
+    if (response.length > 2000) {
+        return {
+            isValid: false,
+            error: 'Response exceeds maximum length'
+        };
+    }
+
+    // Check for AI disclosure phrases
+    const aiDisclosurePhrases = [
+        /as an ai/i,
+        /i am an ai/i,
+        /i'm an ai/i,
+        /artificial intelligence/i,
+        /language model/i,
+        /ai assistant/i,
+        /ai model/i
+    ];
+
+    for (const phrase of aiDisclosurePhrases) {
+        if (phrase.test(response)) {
+            return {
+                isValid: false,
+                error: 'Response contains AI disclosure'
+            };
+        }
+    }
+
+    // Check for impersonation disclosure
+    const impersonationPhrases = [
+        /pretending to be/i,
+        /impersonating/i,
+        /acting as/i,
+        /roleplaying/i,
+        new RegExp(`pretending.*${userInfo.username}`, 'i')
+    ];
+
+    for (const phrase of impersonationPhrases) {
+        if (phrase.test(response)) {
+            return {
+                isValid: false,
+                error: 'Response contains impersonation disclosure'
+            };
+        }
+    }
+
+    // Check for potentially harmful content
+    const harmfulPatterns = [
+        /(^|\s)kms(\s|$)/i,  // Self-harm references
+        /(^|\s)kys(\s|$)/i,  // Harmful suggestions
+        /\b(hate|kill|murder)\b/i,  // Violent content
+        /\b(suicide|die)\b/i  // Self-harm content
+    ];
+
+    for (const pattern of harmfulPatterns) {
+        if (pattern.test(response)) {
+            return {
+                isValid: false,
+                error: 'Response contains potentially harmful content'
+            };
+        }
+    }
+
+    return { isValid: true };
+}
+
+/**
+ * Sanitizes and formats the response for consistency
+ * @param {string} response - The validated response
+ * @returns {string} Sanitized and formatted response
+ */
+function sanitizeResponse(response) {
+    return response
+        .trim()
+        // Remove multiple consecutive spaces
+        .replace(/\s+/g, ' ')
+        // Remove multiple consecutive newlines
+        .replace(/\n{3,}/g, '\n\n')
+        // Ensure proper spacing after punctuation
+        .replace(/([.!?])\s*(\w)/g, '$1 $2')
+        // Remove leading/trailing quotes if they match
+        .replace(/^["'](.+)["']$/, '$1');
+}
+
+/**
  * Generates an AI response impersonating a user based on their chat history and style
  * @param {string} message - The message to respond to
  * @param {Array} userHistory - Array of user's previous messages
@@ -33,7 +132,8 @@ export async function generateAvatarResponse(message, userHistory, userInfo) {
             new SystemMessage({
                 content: `You are now impersonating ${userInfo.username}. Based on their chat history, they ${writingStyle}. 
                          Maintain this style while responding naturally and authentically. Keep responses concise and in character.
-                         Never mention that you are an AI or that you are impersonating someone.`
+                         Never mention that you are an AI or that you are impersonating someone.
+                         Avoid any harmful, offensive, or inappropriate content.`
             }),
             new HumanMessage({
                 content: `Previous conversations:\n${formattedHistory}\n\nRespond to: ${message}`
@@ -42,7 +142,16 @@ export async function generateAvatarResponse(message, userHistory, userInfo) {
 
         // Get response from ChatGPT
         const response = await llm.invoke(messages);
-        return response.content;
+        const content = response.content;
+
+        // Validate the response
+        const validation = validateResponse(content, userInfo);
+        if (!validation.isValid) {
+            throw new Error(`Invalid response: ${validation.error}`);
+        }
+
+        // Sanitize and return the validated response
+        return sanitizeResponse(content);
 
     } catch (error) {
         console.error('Error generating avatar response:', error);
