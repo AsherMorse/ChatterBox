@@ -64,6 +64,9 @@ function Chat({ onLogout }) {
     const [isThreadOpen, setIsThreadOpen] = useState(false);
     const [activeThreadMessage, setActiveThreadMessage] = useState(null);
     const [isChatterbotTyping, setIsChatterbotTyping] = useState(false);
+    const [atCursorPosition, setAtCursorPosition] = useState(null);
+    const [showAvatarSuggestion, setShowAvatarSuggestion] = useState(false);
+    const inputRef = useRef(null);
 
     // Initialize sidebar state based on screen size
     useEffect(() => {
@@ -691,6 +694,57 @@ function Chat({ onLogout }) {
         setActiveThreadMessage(null);
     };
 
+    const handleInputChange = (e) => {
+        const value = e.target.value;
+        const cursorPosition = e.target.selectionStart;
+        
+        // Check if @ was just typed
+        if (value[cursorPosition - 1] === '@') {
+            setAtCursorPosition(cursorPosition);
+            // Only show suggestion in regular DMs
+            if (currentDMId && currentDMId !== CHATTERBOT_ID) {
+                setShowAvatarSuggestion(true);
+            }
+        } else if (atCursorPosition !== null) {
+            // Clear @ position if we've moved past it or deleted it
+            const textFromAt = value.slice(atCursorPosition - 1);
+            if (!textFromAt.startsWith('@')) {
+                setAtCursorPosition(null);
+                setShowAvatarSuggestion(false);
+            } else if (!textFromAt.startsWith('@avatar') && textFromAt.length > 1) {
+                // Hide suggestion if user types something that doesn't match @avatar
+                setShowAvatarSuggestion(false);
+            }
+        }
+        
+        setNewMessage(value);
+        handleTyping();
+    };
+
+    const handleAvatarSuggestionSelect = () => {
+        const beforeAt = newMessage.slice(0, atCursorPosition - 1);
+        const afterAt = newMessage.slice(atCursorPosition);
+        const newValue = `${beforeAt}@avatar ${afterAt}`;
+        setNewMessage(newValue);
+        setShowAvatarSuggestion(false);
+        setAtCursorPosition(null);
+        // Focus input and place cursor after @avatar
+        if (inputRef.current) {
+            inputRef.current.focus();
+            const newCursorPosition = atCursorPosition + 6; // "@avatar".length - "@".length
+            inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (showAvatarSuggestion && (e.key === 'Tab' || e.key === 'Enter')) {
+            e.preventDefault();
+            handleAvatarSuggestionSelect();
+        } else if (e.key !== 'Enter') {
+            handleTyping();
+        }
+    };
+
     return (
         <div className="min-h-screen bg-alice-blue dark:bg-dark-bg-primary transition-colors duration-200">
             <Header 
@@ -1036,21 +1090,30 @@ function Chat({ onLogout }) {
                                         )}
                                     </div>
                                     <input
+                                        ref={inputRef}
                                         type="text"
                                         value={newMessage}
-                                        onChange={(e) => {
-                                            setNewMessage(e.target.value);
-                                            handleTyping();
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key !== 'Enter') {
-                                                handleTyping();
-                                            }
-                                        }}
+                                        onChange={handleInputChange}
+                                        onKeyDown={handleKeyDown}
                                         placeholder={isWaitingForBot ? "Waiting for ChatterBot's response..." : "Type a message..."}
                                         className="w-full px-4 py-2.5 pl-12 pr-12 rounded-xl border border-powder-blue dark:border-dark-border hover:border-emerald dark:hover:border-emerald bg-white dark:bg-dark-bg-primary dark:text-dark-text-primary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!currentChannelId && !currentDMId || (currentDMId === CHATTERBOT_ID && isWaitingForBot)}
                                     />
+                                    {showAvatarSuggestion && (
+                                        <div className="absolute left-12 bottom-full mb-2">
+                                            <button
+                                                onClick={handleAvatarSuggestionSelect}
+                                                className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-dark-bg-secondary border border-powder-blue dark:border-dark-border rounded-lg shadow-sm hover:border-emerald dark:hover:border-emerald transition-colors duration-200"
+                                            >
+                                                <div className="w-5 h-5 rounded-full bg-emerald/10 flex items-center justify-center">
+                                                    <svg className="w-3 h-3 text-emerald" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm text-gunmetal dark:text-dark-text-primary">@avatar</span>
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="absolute right-2 top-1/2 -translate-y-1/2">
                                         <button
                                             type="submit"
