@@ -143,20 +143,20 @@ For detailed instructions, see:
 1. **Running the Client**  
    From the “client/” folder:
    ```bash
-   npm run dev | cat
+   npm run dev
    ```
    This starts a local dev server (default at localhost:5173).  
 
 2. **Running the Server**  
    From the “server/” folder:
    ```bash
-   npm run dev | cat
+   npm run dev
    ```
    The server typically starts on port 3000.  
 
 3. **Linting & Formatting**  
    ```bash
-   npm run lint | cat
+   npm run lint
    ```
    ESLint is configured to enforce React best practices, modern JS usage, and consistent formatting.  
 
